@@ -1,0 +1,621 @@
+// Nova — an online store served entirely by raylang: the `web/framework` router, SQLite
+// for persistence and compiled `.ray.html` templates for the embedded storefront. The
+// same process also exposes a JSON API (`/api/...`) that the static Astro frontend and
+// its React islands consume.
+//
+//   ray run                    start the server (creates and seeds data/store.db if needed)
+//   ray run main.ray reseed    wipe the catalog and seed it again
+//   ray dev                    same, with hot reload
+//   PORT=9000 ray run          listen somewhere else
+from web/framework import new_app, GET, POST, listen_graceful, static_files_cached,
+    not_found, log_requests, after, cors, html, json, text, status, header, cookie,
+    redirect, param, query, body, form_field, cookie_of, json_of, App, Ctx, Res, ToJson;
+from std/json import obj, field, list;
+import std/url;
+import db/sqlite;
+
+import src/database;
+import src/schema;
+import src/catalog;
+import src/cart;
+import src/orders;
+import src/imagery;
+import src/view;
+import src/urls;
+import src/models;
+
+import views/home;
+import views/catalog as catalog_view;
+import views/product as product_view;
+import views/cart as cart_view;
+import views/checkout as checkout_view;
+import views/confirmation as confirmation_view;
+import views/notfound;
+
+const CART_COOKIE: string = "nova_cart";
+const CART_MAX_AGE: string = "2592000";      // 30 days
+const PAGE_SIZE: int = 9;
+
+// ---------------------------------------------------------------- request plumbing
+
+fn split_list(raw: string) -> [string] {
+    var out: [string] = [];
+    if (raw.trim() == "") { return out; }
+    for piece in raw.split(",") {
+        let value = piece.trim();
+        if (value != "" && !out.contains(value)) { out.push(value); }
+    }
+    out
+}
+
+fn as_int_or(raw: string, fallback: int) -> int {
+    match (parse_int(raw.trim())) {
+        Option.Some(n) => n,
+        Option.None => fallback,
+    }
+}
+
+/// Reads the whole filter state out of the query string.
+fn query_from(c: Ctx) -> catalog.Query {
+    var q = catalog.empty_query();
+    q.search = c.query("q");
+    q.category = c.query("categoria");
+    q.brands = split_list(c.query("marca"));
+    q.colors = split_list(c.query("color"));
+    q.sizes = split_list(c.query("talla"));
+    q.min_cents = as_int_or(c.query("min"), 0) * 100;
+    q.max_cents = as_int_or(c.query("max"), 0) * 100;
+    q.min_rating = as_int_or(c.query("valoracion"), 0);
+    q.in_stock = c.query("stock") == "1";
+    q.on_sale = c.query("oferta") == "1";
+    let sort = c.query("orden");
+    q.sort = if (sort == "") { "featured" } else { sort };
+    q.page = as_int_or(c.query("pagina"), 1);
+    q.per_page = PAGE_SIZE;
+    q
+}
+
+/// The cart line-up as stored in the browser cookie ("" when there is none).
+fn cart_raw(c: Ctx) -> string {
+    let raw = c.cookie_of(CART_COOKIE);
+    if (raw == "") { return ""; }
+    match (url.url_decode(raw)) {
+        Result.Ok(decoded) => decoded,
+        Result.Err(_) => "",
+    }
+}
+
+// The cart is state the SERVER never keeps: it travels in a cookie and is re-priced
+// against the catalog on every request, so nothing the browser sends can change a price.
+fn store_cart(r: Res, value: string) {
+    r.cookie(CART_COOKIE + "=" + url.url_encode(value)
+        + "; Path=/; HttpOnly; SameSite=Lax; Max-Age=" + CART_MAX_AGE);
+}
+
+// Rails and sidebars degrade to an empty list rather than taking the whole page down.
+fn products_or_empty(result: Result<[models.Product], string>) -> [models.Product] {
+    match (result) {
+        Result.Ok(items) => items,
+        Result.Err(e) => { eprint("store: " + e); [] },
+    }
+}
+
+fn categories_or_empty(result: Result<[models.Category], string>) -> [models.Category] {
+    match (result) {
+        Result.Ok(items) => items,
+        Result.Err(e) => { eprint("store: " + e); [] },
+    }
+}
+
+fn brands_or_empty(result: Result<[models.Brand], string>) -> [models.Brand] {
+    match (result) {
+        Result.Ok(items) => items,
+        Result.Err(e) => { eprint("store: " + e); [] },
+    }
+}
+
+fn shell_for(conn: sqlite.Conn, c: Ctx, title: string, description: string,
+             path: string) -> view.Shell {
+    let categories = categories_or_empty(catalog.all_categories(conn));
+    view.shell(title, description, path, c.query("q"), cart.units(cart_raw(c)), categories)
+}
+
+fn fail(r: Res, message: string) {
+    eprint("store: " + message);
+    r.status(500).html(`<!DOCTYPE html><meta charset="utf-8"><title>Error</title>
+        <body style="font-family: system-ui; padding: 60px; text-align: center">
+        <h1>Algo se ha roto</h1><p>Vuelve a intentarlo en un momento.</p>
+        <p><a href="/">Volver a la portada</a></p></body>`);
+}
+
+fn render_not_found(conn: sqlite.Conn, c: Ctx, r: Res) {
+    let shell = shell_for(conn, c, "Pagina no encontrada", "La pagina que buscas no existe.", "/404");
+    let picks = products_or_empty(catalog.featured(conn, 4));
+    r.status(404).html(notfound.render(shell, picks));
+}
+
+// ---------------------------------------------------------------- storefront pages
+
+fn page_home(c: Ctx, r: Res) {
+    match (database.open()) {
+        Result.Err(e) => { fail(r, e); },
+        Result.Ok(conn) => {
+            let shell = shell_for(conn, c, "Tecnologia elegida a mano",
+                "Audio, wearables, informatica y hogar inteligente con envio en 24 h.", "/");
+            match (catalog.featured(conn, 8)) {
+                Result.Err(e) => { fail(r, e); },
+                Result.Ok(featured) => {
+                    let deals = products_or_empty(catalog.on_sale(conn, 4));
+                    let fresh = products_or_empty(catalog.newest(conn, 4));
+                    let size = match (schema.product_count(conn)) { Result.Ok(n) => n, Result.Err(_) => 0 };
+                    if (featured.len() == 0) {
+                        fail(r, "catalogo vacio");
+                    } else {
+                        var rail: [models.Product] = [];
+                        var i = 1;
+                        while (i < featured.len()) { rail.push(featured[i]); i = i + 1; }
+                        r.html(home.render(shell, featured[0], rail, deals, fresh, size));
+                    }
+                },
+            }
+            sqlite.disconnect(conn);
+        },
+    }
+}
+
+fn render_catalog(c: Ctx, r: Res, q: catalog.Query, heading: string, subheading: string, path: string) {
+    match (database.open()) {
+        Result.Err(e) => { fail(r, e); },
+        Result.Ok(conn) => {
+            match (catalog.search(conn, q)) {
+                Result.Err(e) => { fail(r, e); },
+                Result.Ok(page) => {
+                    match (catalog.facets(conn, q)) {
+                        Result.Err(e) => { fail(r, e); },
+                        Result.Ok(facets) => {
+                            // The heading follows what the shopper actually asked for:
+                            // their search terms, then the category, then the section.
+                            var title = heading;
+                            for facet in facets.categories {
+                                if (facet.value == q.category) { title = facet.label; }
+                            }
+                            if (q.search.trim() != "") { title = "Resultados de “" + q.search + "”"; }
+                            let counted = to_string(page.total) + " "
+                                + (if (page.total == 1) { "producto" } else { "productos" })
+                                + " · " + subheading;
+                            var section = path;
+                            if (q.category != "") { section = "/c/" + q.category; }
+                            let shell = shell_for(conn, c, title, counted, section);
+                            r.html(catalog_view.render(shell, page, facets, q, title, counted));
+                        },
+                    }
+                },
+            }
+            sqlite.disconnect(conn);
+        },
+    }
+}
+
+fn page_catalog(c: Ctx, r: Res) {
+    let q = query_from(c);
+    render_catalog(c, r, q, "Todo el catalogo",
+        "stock real, ficha tecnica completa y envio en 24 h.", "/catalogo");
+}
+
+fn page_deals(c: Ctx, r: Res) {
+    var q = query_from(c);
+    q.on_sale = true;
+    if (q.sort == "featured") { q.sort = "discount"; }
+    render_catalog(c, r, q, "Semana Nova",
+        "rebajados ahora mismo, ordenados por descuento.", "/ofertas");
+}
+
+fn page_product(c: Ctx, r: Res) {
+    match (database.open()) {
+        Result.Err(e) => { fail(r, e); },
+        Result.Ok(conn) => {
+            match (catalog.by_slug(conn, c.param("slug"))) {
+                Result.Err(e) => { fail(r, e); },
+                Result.Ok(found) => {
+                    match (found) {
+                        Option.None => { render_not_found(conn, c, r); },
+                        Option.Some(product) => {
+                            let chosen = view.pick_variant(product, c.query("color"), c.query("talla"));
+                            let related = products_or_empty(catalog.related(conn, product, 4));
+                            let shell = shell_for(conn, c, product.name, product.tagline,
+                                "/c/" + product.category_slug);
+                            var notice = "";
+                            if (c.query("anadido") == "1") { notice = "Anadido al carrito"; }
+                            r.html(product_view.render(shell, product, chosen, related, notice));
+                        },
+                    }
+                },
+            }
+            sqlite.disconnect(conn);
+        },
+    }
+}
+
+fn page_cart(c: Ctx, r: Res) {
+    match (database.open()) {
+        Result.Err(e) => { fail(r, e); },
+        Result.Ok(conn) => {
+            match (cart.resolve(conn, cart_raw(c))) {
+                Result.Err(e) => { fail(r, e); },
+                Result.Ok(basket) => {
+                    let shell = shell_for(conn, c, "Tu carrito", "Revisa tu pedido antes de pagar.", "/carrito");
+                    let suggestions = products_or_empty(catalog.featured(conn, 4));
+                    r.html(cart_view.render(shell, basket, suggestions));
+                },
+            }
+            sqlite.disconnect(conn);
+        },
+    }
+}
+
+// ---------------------------------------------------------------- cart mutations
+
+fn back_to(c: Ctx, fallback: string) -> string {
+    let target = c.form_field("back");
+    if (target.starts_with("/") && !target.starts_with("//")) { return target; }
+    fallback
+}
+
+fn action_add(c: Ctx, r: Res) {
+    let variant = as_int_or(c.form_field("variant"), 0);
+    var quantity = as_int_or(c.form_field("quantity"), 1);
+    if (quantity < 1) { quantity = 1; }
+    let updated = cart.add(cart_raw(c), variant, quantity);
+    store_cart(r, updated);
+    let target = back_to(c, "/carrito");
+    let joiner = if (target.contains("?")) { "&" } else { "?" };
+    r.redirect(target + joiner + "anadido=1");
+}
+
+fn action_update(c: Ctx, r: Res) {
+    let variant = as_int_or(c.form_field("variant"), 0);
+    let quantity = as_int_or(c.form_field("quantity"), 0);
+    store_cart(r, cart.set_quantity(cart_raw(c), variant, quantity));
+    r.redirect("/carrito");
+}
+
+fn action_remove(c: Ctx, r: Res) {
+    store_cart(r, cart.remove(cart_raw(c), as_int_or(c.form_field("variant"), 0)));
+    r.redirect("/carrito");
+}
+
+// ---------------------------------------------------------------- checkout
+
+fn page_checkout(c: Ctx, r: Res) {
+    match (database.open()) {
+        Result.Err(e) => { fail(r, e); },
+        Result.Ok(conn) => {
+            match (cart.resolve(conn, cart_raw(c))) {
+                Result.Err(e) => { fail(r, e); },
+                Result.Ok(basket) => {
+                    if (basket.lines.len() == 0) {
+                        r.redirect("/carrito");
+                    } else {
+                        let shell = shell_for(conn, c, "Finalizar compra", "Ultimo paso.", "/checkout");
+                        r.html(checkout_view.render(shell, basket, "", "", "", ""));
+                    }
+                },
+            }
+            sqlite.disconnect(conn);
+        },
+    }
+}
+
+fn action_checkout(c: Ctx, r: Res) {
+    match (database.open()) {
+        Result.Err(e) => { fail(r, e); },
+        Result.Ok(conn) => {
+            let customer = c.form_field("name");
+            let email = c.form_field("email");
+            let address = c.form_field("address");
+            match (cart.resolve(conn, cart_raw(c))) {
+                Result.Err(e) => { fail(r, e); },
+                Result.Ok(basket) => {
+                    if (basket.lines.len() == 0) {
+                        r.redirect("/carrito");
+                    } else {
+                        match (orders.place(conn, basket, customer, email, address)) {
+                            Result.Ok(placed) => {
+                                store_cart(r, "");
+                                r.redirect("/pedido/" + placed.reference);
+                            },
+                            Result.Err(problem) => {
+                                let shell = shell_for(conn, c, "Finalizar compra", "Ultimo paso.", "/checkout");
+                                r.status(422).html(checkout_view.render(shell, basket, problem,
+                                    customer, email, address));
+                            },
+                        }
+                    }
+                },
+            }
+            sqlite.disconnect(conn);
+        },
+    }
+}
+
+fn page_order(c: Ctx, r: Res) {
+    match (database.open()) {
+        Result.Err(e) => { fail(r, e); },
+        Result.Ok(conn) => {
+            match (orders.by_reference(conn, c.param("reference"))) {
+                Result.Err(e) => { fail(r, e); },
+                Result.Ok(found) => {
+                    match (found) {
+                        Option.None => { render_not_found(conn, c, r); },
+                        Option.Some(placed) => {
+                            let shell = shell_for(conn, c, "Pedido " + placed.reference,
+                                "Gracias por tu compra.", "/pedido");
+                            let picks = products_or_empty(catalog.newest(conn, 4));
+                            r.html(confirmation_view.render(shell, placed, picks));
+                        },
+                    }
+                },
+            }
+            sqlite.disconnect(conn);
+        },
+    }
+}
+
+// ---------------------------------------------------------------- generated imagery
+
+fn strip_extension(name: string) -> string {
+    if (name.ends_with(".svg")) { return name.substring(0, name.len() - 4); }
+    name
+}
+
+fn svg_response(r: Res, svg: string) {
+    r.header("Content-Type", "image/svg+xml; charset=utf-8")
+     .header("Cache-Control", "public, max-age=86400")
+     .text(svg);
+}
+
+fn image_product(c: Ctx, r: Res) {
+    let slug = strip_extension(c.param("slug"));
+    match (database.open()) {
+        Result.Err(e) => { fail(r, e); },
+        Result.Ok(conn) => {
+            match (catalog.by_slug(conn, slug)) {
+                Result.Ok(found) => {
+                    match (found) {
+                        Option.Some(product) => { svg_response(r, imagery.product_svg(product.slug, product.category_slug)); },
+                        Option.None => { r.status(404).text("no existe"); },
+                    }
+                },
+                Result.Err(e) => { fail(r, e); },
+            }
+            sqlite.disconnect(conn);
+        },
+    }
+}
+
+fn image_category(c: Ctx, r: Res) {
+    svg_response(r, imagery.category_svg(strip_extension(c.param("slug"))));
+}
+
+fn image_favicon(c: Ctx, r: Res) {
+    svg_response(r, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+        <rect width="32" height="32" rx="9" fill="#ff5b35"/>
+        <path d="M10 22V10l12 12V10" fill="none" stroke="#fff" stroke-width="3.4"
+              stroke-linecap="round" stroke-linejoin="round"/></svg>`);
+}
+
+// ---------------------------------------------------------------- JSON API
+
+fn api_products(c: Ctx, r: Res) {
+    match (database.open()) {
+        Result.Err(e) => { fail(r, e); },
+        Result.Ok(conn) => {
+            var q = query_from(c);
+            q.per_page = as_int_or(c.query("porPagina"), 12);
+            match (catalog.search(conn, q)) {
+                Result.Err(e) => { fail(r, e); },
+                Result.Ok(page) => {
+                    r.json_of(obj()
+                        .field("items", list(page.items))
+                        .field("total", page.total)
+                        .field("page", page.page)
+                        .field("perPage", page.per_page)
+                        .field("pages", page.pages));
+                },
+            }
+            sqlite.disconnect(conn);
+        },
+    }
+}
+
+fn api_product(c: Ctx, r: Res) {
+    match (database.open()) {
+        Result.Err(e) => { fail(r, e); },
+        Result.Ok(conn) => {
+            match (catalog.by_slug(conn, c.param("slug"))) {
+                Result.Err(e) => { fail(r, e); },
+                Result.Ok(found) => {
+                    match (found) {
+                        Option.Some(product) => { r.json_of(product); },
+                        Option.None => { r.status(404).json(`{"error": "producto no encontrado"}`); },
+                    }
+                },
+            }
+            sqlite.disconnect(conn);
+        },
+    }
+}
+
+fn api_taxonomy(c: Ctx, r: Res) {
+    match (database.open()) {
+        Result.Err(e) => { fail(r, e); },
+        Result.Ok(conn) => {
+            let categories = categories_or_empty(catalog.all_categories(conn));
+            let brands = brands_or_empty(catalog.all_brands(conn));
+            r.json_of(obj().field("categories", list(categories)).field("brands", list(brands)));
+            sqlite.disconnect(conn);
+        },
+    }
+}
+
+fn api_facets(c: Ctx, r: Res) {
+    match (database.open()) {
+        Result.Err(e) => { fail(r, e); },
+        Result.Ok(conn) => {
+            match (catalog.facets(conn, query_from(c))) {
+                Result.Err(e) => { fail(r, e); },
+                Result.Ok(facets) => {
+                    r.json_of(obj()
+                        .field("categories", list(facets.categories))
+                        .field("brands", list(facets.brands))
+                        .field("colors", list(facets.colors))
+                        .field("sizes", list(facets.sizes))
+                        .field("minCents", facets.min_cents)
+                        .field("maxCents", facets.max_cents));
+                },
+            }
+            sqlite.disconnect(conn);
+        },
+    }
+}
+
+fn api_cart(c: Ctx, r: Res) {
+    match (database.open()) {
+        Result.Err(e) => { fail(r, e); },
+        Result.Ok(conn) => {
+            match (cart.resolve(conn, cart_raw(c))) {
+                Result.Err(e) => { fail(r, e); },
+                Result.Ok(basket) => { r.json_of(basket); },
+            }
+            sqlite.disconnect(conn);
+        },
+    }
+}
+
+// The islands post here; the answer is the whole re-priced cart, so the client never
+// has to compute a total itself.
+fn api_cart_mutate(c: Ctx, r: Res) {
+    let action = c.param("action");
+    let variant = as_int_or(c.form_field("variant"), 0);
+    let quantity = as_int_or(c.form_field("quantity"), 1);
+    let current = cart_raw(c);
+    var updated = current;
+    if (action == "add") { updated = cart.add(current, variant, quantity); }
+    if (action == "set") { updated = cart.set_quantity(current, variant, quantity); }
+    if (action == "remove") { updated = cart.remove(current, variant); }
+    if (action == "clear") { updated = ""; }
+    store_cart(r, updated);
+
+    match (database.open()) {
+        Result.Err(e) => { fail(r, e); },
+        Result.Ok(conn) => {
+            match (cart.resolve(conn, updated)) {
+                Result.Err(e) => { fail(r, e); },
+                Result.Ok(basket) => { r.json_of(basket); },
+            }
+            sqlite.disconnect(conn);
+        },
+    }
+}
+
+fn api_health(c: Ctx, r: Res) {
+    match (database.open()) {
+        Result.Err(e) => { r.status(503).json(`{"status": "degraded"}`); },
+        Result.Ok(conn) => {
+            let total = match (schema.product_count(conn)) { Result.Ok(n) => n, Result.Err(_) => 0 };
+            sqlite.disconnect(conn);
+            r.json_of(obj().field("status", "ok").field("products", total).field("engine", "raylang"));
+        },
+    }
+}
+
+// ---------------------------------------------------------------- wiring
+
+fn build_app() -> App {
+    var app = new_app();
+    app.log_requests();
+
+    app.static_files_cached("/assets/", "static", 3600);
+    app.static_files_cached("/app/", "web/dist", 300);
+
+    app.GET("/", page_home);
+    app.GET("/catalogo", page_catalog);
+    app.GET("/ofertas", page_deals);
+    app.GET("/producto/:slug", page_product);
+    app.GET("/carrito", page_cart);
+    app.POST("/carrito/anadir", action_add);
+    app.POST("/carrito/actualizar", action_update);
+    app.POST("/carrito/quitar", action_remove);
+    app.GET("/checkout", page_checkout);
+    app.POST("/checkout", action_checkout);
+    app.GET("/pedido/:reference", page_order);
+
+    app.GET("/img/product/:slug", image_product);
+    app.GET("/img/category/:slug", image_category);
+    app.GET("/img/favicon.svg", image_favicon);
+
+    app.cors("*");
+    app.GET("/api/products", api_products);
+    app.GET("/api/products/:slug", api_product);
+    app.GET("/api/taxonomy", api_taxonomy);
+    app.GET("/api/facets", api_facets);
+    app.GET("/api/cart", api_cart);
+    app.POST("/api/cart/:action", api_cart_mutate);
+    app.GET("/salud", api_health);
+
+    app.after(fn(c: Ctx, r: Res) {
+        r.header("X-Content-Type-Options", "nosniff");
+        r.header("Referrer-Policy", "strict-origin-when-cross-origin");
+    });
+
+    app.not_found(fn(c: Ctx, r: Res) {
+        match (database.open()) {
+            Result.Ok(conn) => {
+                render_not_found(conn, c, r);
+                sqlite.disconnect(conn);
+            },
+            Result.Err(_) => { r.status(404).text("404"); },
+        }
+    });
+
+    app
+}
+
+fn bootstrap() -> Result<int, string> {
+    let conn = database.open()?;
+    let total = schema.ensure(conn)?;
+    sqlite.disconnect(conn);
+    Result.Ok(total)
+}
+
+fn reseed() -> Result<int, string> {
+    let conn = database.open()?;
+    let total = schema.reset(conn)?;
+    sqlite.disconnect(conn);
+    Result.Ok(total)
+}
+
+fn main() -> int {
+    let arguments = args();
+    if (arguments.len() > 0 && arguments.contains("reseed")) {
+        match (reseed()) {
+            Result.Ok(total) => { print("catalogo regenerado: " + to_string(total) + " productos"); return 0; },
+            Result.Err(e) => { eprint("reseed: " + e); return 1; },
+        }
+    }
+
+    match (bootstrap()) {
+        Result.Ok(total) => { print("catalogo listo: " + to_string(total) + " productos en " + database.path()); },
+        Result.Err(e) => { eprint("arranque: " + e); return 1; },
+    }
+
+    let port = match (env("PORT")) {
+        Option.Some(value) => as_int_or(value, 8080),
+        Option.None => 8080,
+    };
+    print("Nova escuchando en http://127.0.0.1:" + to_string(port));
+    match (listen_graceful(build_app, "127.0.0.1", port, 5000)) {
+        Result.Ok(_) => 0,
+        Result.Err(e) => { eprint("servidor: " + e); 1 },
+    }
+}

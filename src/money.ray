@@ -1,0 +1,48 @@
+// Presentation helpers for prices and ratings. Amounts live in the domain as integer
+// cents; only this module turns them into the Spanish notation (1.299,00 EUR).
+import std/math;
+
+fn group_thousands(digits: string) -> string {
+    let n = digits.len();
+    if (n <= 3) { return digits; }
+    var out = "";
+    var i = 0;
+    while (i < n) {
+        let remaining = n - i;
+        if (i > 0 && remaining % 3 == 0) { out = out + "."; }
+        out = out + to_string(digits[i]);
+        i = i + 1;
+    }
+    out
+}
+
+/// 129900 -> "1.299,00 €"
+pub fn eur(cents: int) -> string {
+    let sign = if (cents < 0) { "-" } else { "" };
+    let absolute = math.abs(cents);
+    let units = to_string(absolute / 100);
+    var decimals = to_string(absolute % 100);
+    if (decimals.len() < 2) { decimals = "0" + decimals; }
+    sign + group_thousands(units) + "," + decimals + " €"
+}
+
+/// 129900 -> "1.299" (compact form for the hero and the badges)
+pub fn eur_short(cents: int) -> string {
+    group_thousands(to_string(math.abs(cents) / 100)) + " €"
+}
+
+/// How much cheaper the product is now, in whole percent. 0 when it is not on sale.
+pub fn discount_percent(price_cents: int, compare_at_cents: int) -> int {
+    if (compare_at_cents <= price_cents || compare_at_cents <= 0) { return 0; }
+    return ((compare_at_cents - price_cents) * 100) / compare_at_cents;
+}
+
+/// Rating in tenths (47) -> "4,7"
+pub fn rating_text(rating: int) -> string {
+    to_string(rating / 10) + "," + to_string(rating % 10)
+}
+
+/// Width in percent of the filled part of a five star bar.
+pub fn rating_percent(rating: int) -> int {
+    (rating * 100) / 50
+}

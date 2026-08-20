@@ -1,0 +1,164 @@
+// Link building for the catalog. Every filter is a plain URL, so the whole store works
+// without a line of JavaScript: a facet is a link that toggles one value and keeps the
+// rest of the state intact.
+import std/url;
+import src/markup;
+from src/catalog import Query;
+
+// Arrays have reference semantics, so a copy has to clone its lists explicitly.
+fn cloned(values: [string]) -> [string] {
+    var out: [string] = [];
+    for value in values { out.push(value); }
+    out
+}
+
+fn copy_of(q: Query) -> Query {
+    Query {
+        search: q.search, category: q.category,
+        brands: cloned(q.brands), colors: cloned(q.colors), sizes: cloned(q.sizes),
+        min_cents: q.min_cents, max_cents: q.max_cents, min_rating: q.min_rating,
+        in_stock: q.in_stock, on_sale: q.on_sale, sort: q.sort,
+        page: q.page, per_page: q.per_page,
+    }
+}
+
+fn toggled(values: [string], value: string) -> [string] {
+    if (values.contains(value)) {
+        return values.filter(fn(v: string) -> bool { v != value });
+    }
+    values + [value]
+}
+
+pub fn is_active(values: [string], value: string) -> bool {
+    values.contains(value)
+}
+
+fn add_param(parts: [string], key: string, value: string) {
+    if (value != "") { parts.push(key + "=" + url.url_encode(value)); }
+}
+
+/// The canonical URL of a query state.
+pub fn catalog_url(q: Query) -> string {
+    var parts: [string] = [];
+    add_param(parts, "q", q.search.trim());
+    add_param(parts, "categoria", q.category);
+    add_param(parts, "marca", q.brands.join(","));
+    add_param(parts, "color", q.colors.join(","));
+    add_param(parts, "talla", q.sizes.join(","));
+    if (q.min_cents > 0) { add_param(parts, "min", to_string(q.min_cents / 100)); }
+    if (q.max_cents > 0) { add_param(parts, "max", to_string(q.max_cents / 100)); }
+    if (q.min_rating > 0) { add_param(parts, "valoracion", to_string(q.min_rating)); }
+    if (q.in_stock) { add_param(parts, "stock", "1"); }
+    if (q.on_sale) { add_param(parts, "oferta", "1"); }
+    if (q.sort != "" && q.sort != "featured") { add_param(parts, "orden", q.sort); }
+    if (q.page > 1) { add_param(parts, "pagina", to_string(q.page)); }
+    if (parts.len() == 0) { return "/catalogo"; }
+    "/catalogo?" + parts.join("&")
+}
+
+// Every mutation resets the page: after changing a filter, page 7 usually does not exist.
+fn rewound(q: Query) -> Query {
+    var next = copy_of(q);
+    next.page = 1;
+    next
+}
+
+pub fn with_category(q: Query, slug: string) -> string {
+    var next = rewound(q);
+    next.category = if (next.category == slug) { "" } else { slug };
+    catalog_url(next)
+}
+
+pub fn toggle_brand(q: Query, slug: string) -> string {
+    var next = rewound(q);
+    next.brands = toggled(next.brands, slug);
+    catalog_url(next)
+}
+
+pub fn toggle_color(q: Query, value: string) -> string {
+    var next = rewound(q);
+    next.colors = toggled(next.colors, value);
+    catalog_url(next)
+}
+
+pub fn toggle_size(q: Query, value: string) -> string {
+    var next = rewound(q);
+    next.sizes = toggled(next.sizes, value);
+    catalog_url(next)
+}
+
+pub fn with_rating(q: Query, rating: int) -> string {
+    var next = rewound(q);
+    next.min_rating = if (next.min_rating == rating) { 0 } else { rating };
+    catalog_url(next)
+}
+
+pub fn toggle_in_stock(q: Query) -> string {
+    var next = rewound(q);
+    next.in_stock = !next.in_stock;
+    catalog_url(next)
+}
+
+pub fn toggle_on_sale(q: Query) -> string {
+    var next = rewound(q);
+    next.on_sale = !next.on_sale;
+    catalog_url(next)
+}
+
+pub fn with_sort(q: Query, sort: string) -> string {
+    var next = rewound(q);
+    next.sort = sort;
+    catalog_url(next)
+}
+
+pub fn with_page(q: Query, page: int) -> string {
+    var next = copy_of(q);
+    next.page = page;
+    catalog_url(next)
+}
+
+pub fn without_price(q: Query) -> string {
+    var next = rewound(q);
+    next.min_cents = 0;
+    next.max_cents = 0;
+    catalog_url(next)
+}
+
+pub fn without_search(q: Query) -> string {
+    var next = rewound(q);
+    next.search = "";
+    catalog_url(next)
+}
+
+pub fn clear() -> string { "/catalogo" }
+
+/// The filter state as hidden inputs, so the search/price/sort form does not drop it.
+pub fn state_fields(q: Query) -> string {
+    var out = "";
+    out = out + markup.hidden_field("categoria", q.category);
+    out = out + markup.hidden_field("marca", q.brands.join(","));
+    out = out + markup.hidden_field("color", q.colors.join(","));
+    out = out + markup.hidden_field("talla", q.sizes.join(","));
+    if (q.min_rating > 0) { out = out + markup.hidden_field("valoracion", to_string(q.min_rating)); }
+    if (q.in_stock) { out = out + markup.hidden_field("stock", "1"); }
+    if (q.on_sale) { out = out + markup.hidden_field("oferta", "1"); }
+    out
+}
+
+/// Same, but for the forms that only change one thing (the sort selector).
+pub fn state_fields_with_search(q: Query) -> string {
+    var out = state_fields(q);
+    out = out + markup.hidden_field("q", q.search.trim());
+    if (q.min_cents > 0) { out = out + markup.hidden_field("min", to_string(q.min_cents / 100)); }
+    if (q.max_cents > 0) { out = out + markup.hidden_field("max", to_string(q.max_cents / 100)); }
+    out
+}
+
+/// The product page with a specific option combination preselected.
+pub fn product_url(slug: string, color: string, size: string) -> string {
+    var parts: [string] = [];
+    add_param(parts, "color", color);
+    add_param(parts, "talla", size);
+    if (parts.len() == 0) { return "/producto/" + slug; }
+    "/producto/" + slug + "?" + parts.join("&")
+}

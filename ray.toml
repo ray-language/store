@@ -1,0 +1,9 @@
+[package]
+name = "store"
+version = "0.1.0"
+entry = "main.ray"
+
+[dependencies]
+web = "path:../../raylang/packages/web"
+net = "path:../../raylang/packages/net"
+db = "path:../../raylang/packages/db"

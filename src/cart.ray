@@ -1,0 +1,166 @@
+// The shopping cart. It lives in the session as a compact string ("12:2,45:1"), so the
+// server keeps no mutable shared state: every request re-reads the line-up and re-prices
+// it against the catalog, which is also what makes the price impossible to tamper with.
+import db/sqlite;
+import src/database;
+from src/models import Cart, CartLine;
+
+const FREE_SHIPPING_FROM_CENTS: int = 6000;
+const SHIPPING_CENTS: int = 495;
+const MAX_UNITS_PER_LINE: int = 10;
+
+// `min`/`max` are array reducers here, so the two-number clamp is spelled out.
+fn cap(value: int, limit: int) -> int {
+    if (value > limit) { limit } else { value }
+}
+
+fn at_least_zero(value: int) -> int {
+    if (value < 0) { 0 } else { value }
+}
+
+/// A line as stored in the session: just an id and a quantity.
+pub struct Entry {
+    variant_id: int,
+    quantity: int,
+}
+
+pub fn parse(raw: string) -> [Entry] {
+    var entries: [Entry] = [];
+    if (raw.trim() == "") { return entries; }
+    for chunk in raw.split(",") {
+        let parts = chunk.split(":");
+        if (parts.len() == 2) {
+            let id = database.as_int(parts[0]);
+            let quantity = database.as_int(parts[1]);
+            if (id > 0 && quantity > 0) {
+                entries.push(Entry { variant_id: id, quantity: cap(quantity, MAX_UNITS_PER_LINE) });
+            }
+        }
+    }
+    entries
+}
+
+pub fn serialize(entries: [Entry]) -> string {
+    var chunks: [string] = [];
+    for entry in entries {
+        chunks.push(to_string(entry.variant_id) + ":" + to_string(entry.quantity));
+    }
+    chunks.join(",")
+}
+
+fn index_of_variant(entries: [Entry], variant_id: int) -> int {
+    var i = 0;
+    var found = -1;
+    while (i < entries.len()) {
+        if (entries[i].variant_id == variant_id && found < 0) { found = i; }
+        i = i + 1;
+    }
+    found
+}
+
+/// Adds units to a line, creating it if needed. Returns the new serialized cart.
+pub fn add(raw: string, variant_id: int, quantity: int) -> string {
+    if (variant_id <= 0 || quantity <= 0) { return raw; }
+    var entries = parse(raw);
+    let at = index_of_variant(entries, variant_id);
+    if (at >= 0) {
+        entries[at].quantity = cap(entries[at].quantity + quantity, MAX_UNITS_PER_LINE);
+    } else {
+        entries.push(Entry { variant_id: variant_id, quantity: cap(quantity, MAX_UNITS_PER_LINE) });
+    }
+    serialize(entries)
+}
+
+/// Sets an absolute quantity; 0 or less removes the line.
+pub fn set_quantity(raw: string, variant_id: int, quantity: int) -> string {
+    var entries = parse(raw);
+    var kept: [Entry] = [];
+    for entry in entries {
+        if (entry.variant_id != variant_id) {
+            kept.push(entry);
+        } else if (quantity > 0) {
+            kept.push(Entry { variant_id: variant_id, quantity: cap(quantity, MAX_UNITS_PER_LINE) });
+        }
+    }
+    serialize(kept)
+}
+
+pub fn remove(raw: string, variant_id: int) -> string {
+    set_quantity(raw, variant_id, 0)
+}
+
+/// Total units, for the header badge — cheap enough to call without touching the database.
+pub fn units(raw: string) -> int {
+    var total = 0;
+    for entry in parse(raw) { total = total + entry.quantity; }
+    total
+}
+
+fn shipping_for(subtotal_cents: int) -> int {
+    if (subtotal_cents <= 0 || subtotal_cents >= FREE_SHIPPING_FROM_CENTS) { return 0; }
+    SHIPPING_CENTS
+}
+
+pub fn free_shipping_from() -> int { FREE_SHIPPING_FROM_CENTS }
+
+/// How much is still missing to reach free shipping (0 once it is reached).
+pub fn missing_for_free_shipping(subtotal_cents: int) -> int {
+    if (subtotal_cents >= FREE_SHIPPING_FROM_CENTS) { return 0; }
+    FREE_SHIPPING_FROM_CENTS - subtotal_cents
+}
+
+pub fn empty() -> Cart {
+    Cart { lines: [], units: 0, subtotal_cents: 0, shipping_cents: 0, total_cents: 0 }
+}
+
+/// Prices the session cart against the catalog: unknown or removed variants simply drop
+/// out, and quantities are capped by the stock actually on hand.
+pub fn resolve(conn: sqlite.Conn, raw: string) -> Result<Cart, string> {
+    let entries = parse(raw);
+    if (entries.len() == 0) { return Result.Ok(empty()); }
+
+    var ids: [string] = [];
+    for entry in entries { ids.push(to_string(entry.variant_id)); }
+    let rows = sqlite.query(conn,
+        `SELECT v.id, p.slug, p.name, v.color, v.color_hex, v.size, v.price_cents, v.stock
+         FROM variants v JOIN products p ON p.id = v.product_id
+         WHERE v.id IN (` + ids.join(", ") + ")", [])?;
+
+    var catalog_rows: Map<int, [string]> = Map.new();
+    for row in rows { catalog_rows.insert(database.as_int(row[0]), row); }
+
+    var lines: [CartLine] = [];
+    var total_units = 0;
+    var subtotal = 0;
+    for entry in entries {
+        if let Option.Some(row) = catalog_rows.get(entry.variant_id) {
+            let stock = database.as_int(row[7]);
+            let quantity = cap(entry.quantity, at_least_zero(stock));
+            if (quantity > 0) {
+                let unit = database.as_int(row[6]);
+                lines.push(CartLine {
+                    variant_id: entry.variant_id,
+                    product_slug: row[1],
+                    product_name: row[2],
+                    color: row[3],
+                    color_hex: row[4],
+                    size: row[5],
+                    unit_cents: unit,
+                    quantity: quantity,
+                    stock: stock,
+                });
+                total_units = total_units + quantity;
+                subtotal = subtotal + unit * quantity;
+            }
+        }
+    }
+
+    let shipping = shipping_for(subtotal);
+    Result.Ok(Cart {
+        lines: lines,
+        units: total_units,
+        subtotal_cents: subtotal,
+        shipping_cents: shipping,
+        total_cents: subtotal + shipping,
+    })
+}

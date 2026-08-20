@@ -1,0 +1,95 @@
+---
+import '../styles/global.css';
+import CartBadge from '../components/CartBadge';
+import { fetchAtBuild } from '../lib/api';
+
+interface Props { title: string; description?: string; active?: string }
+const { title, description = 'Tecnologia elegida a mano, con envio en 24 h.', active = '' } = Astro.props;
+
+// The nav is generated at build time from the same taxonomy the server-rendered store uses.
+const taxonomy = await fetchAtBuild<{ categories: { slug: string; name: string }[] }>('/api/taxonomy');
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+---
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{title} · Nova</title>
+  <meta name="description" content={description} />
+  <link rel="icon" href="/img/favicon.svg" type="image/svg+xml" />
+</head>
+<body class="font-sans">
+  <div class="bg-ink text-[13px] text-[#e9ecf3]">
+    <div class="mx-auto flex max-w-[1200px] flex-wrap items-center justify-center gap-6 px-5 py-2.5">
+      <span><b class="text-white">Envio gratis</b> a partir de 60 €</span>
+      <span>Devoluciones en 30 dias</span>
+      <span class="rounded-full bg-white/10 px-2.5 py-0.5">Frontend estatico · Astro + React</span>
+    </div>
+  </div>
+
+  <header class="sticky top-0 z-40 border-b border-line bg-paper/90 backdrop-blur-md">
+    <div class="mx-auto flex max-w-[1200px] items-center gap-5 px-5 py-3.5">
+      <a href={`${base}/`} class="flex items-center gap-2.5 text-xl font-bold tracking-tight">
+        <span class="grid h-[30px] w-[30px] place-items-center rounded-[9px] bg-gradient-to-br from-accent via-[#ff9b3d] to-gold text-sm font-extrabold text-white shadow-lg shadow-accent/30">N</span>
+        Nova
+      </a>
+      <nav class="ml-4 hidden gap-1 md:flex">
+        <a href={`${base}/catalogo/`} class:list={["rounded-full px-3 py-2 text-sm text-ink-soft hover:bg-white hover:text-ink", active === 'catalogo' && 'bg-ink text-white hover:bg-ink hover:text-white']}>Catalogo</a>
+        {taxonomy.categories.map((category) => (
+          <a href={`${base}/catalogo/?categoria=${category.slug}`} class="rounded-full px-3 py-2 text-sm text-ink-soft hover:bg-white hover:text-ink">{category.name}</a>
+        ))}
+      </nav>
+      <div class="ml-auto flex items-center gap-3">
+        <a href="/" class="hidden rounded-full border border-line-strong bg-white px-4 py-2 text-sm text-ink-soft hover:border-ink hover:text-ink lg:block">
+          Version SSR
+        </a>
+        <CartBadge client:load href="/carrito" />
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <slot />
+  </main>
+
+  <footer class="mt-20 bg-ink py-12 text-[#b7c0d2]">
+    <div class="mx-auto max-w-[1200px] px-5">
+      <div class="grid gap-8 md:grid-cols-4">
+        <div>
+          <span class="flex items-center gap-2.5 text-xl font-bold text-white">
+            <span class="grid h-[30px] w-[30px] place-items-center rounded-[9px] bg-gradient-to-br from-accent via-[#ff9b3d] to-gold text-sm font-extrabold text-white">N</span>
+            Nova
+          </span>
+          <p class="mt-3 max-w-[34ch] text-sm">
+            Este frontend es estatico: Astro lo genera en build contra la API de raylang y
+            React solo se hidrata donde hace falta.
+          </p>
+        </div>
+        <div>
+          <h4 class="mb-3 text-[13px] font-bold uppercase tracking-[.1em] text-white">Tienda</h4>
+          {taxonomy.categories.map((category) => (
+            <a href={`${base}/catalogo/?categoria=${category.slug}`} class="block py-1 text-sm hover:text-white">{category.name}</a>
+          ))}
+        </div>
+        <div>
+          <h4 class="mb-3 text-[13px] font-bold uppercase tracking-[.1em] text-white">Compra</h4>
+          <a href="/carrito" class="block py-1 text-sm hover:text-white">Carrito</a>
+          <a href="/checkout" class="block py-1 text-sm hover:text-white">Finalizar compra</a>
+          <a href="/" class="block py-1 text-sm hover:text-white">Tienda renderizada en servidor</a>
+        </div>
+        <div>
+          <h4 class="mb-3 text-[13px] font-bold uppercase tracking-[.1em] text-white">API</h4>
+          <a href="/api/products" class="block py-1 text-sm hover:text-white">/api/products</a>
+          <a href="/api/facets" class="block py-1 text-sm hover:text-white">/api/facets</a>
+          <a href="/salud" class="block py-1 text-sm hover:text-white">/salud</a>
+        </div>
+      </div>
+      <div class="mt-9 flex flex-wrap justify-between gap-4 border-t border-white/10 pt-5 text-[13px]">
+        <span>© 2026 Nova. Servido por raylang.</span>
+        <span>Precios con IVA incluido.</span>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

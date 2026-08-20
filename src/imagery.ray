@@ -1,0 +1,119 @@
+// Product artwork generated on the fly as SVG. Keeping the imagery in code (instead of
+// binary assets or a remote CDN) makes the whole store self-contained: every product
+// gets a deterministic, unique-looking picture derived from its slug.
+
+/// Stable small hash of a slug — same input, same artwork, forever.
+fn hash_of(slug: string) -> int {
+    var h = 17;
+    for c in slug.chars() {
+        h = (h * 31 + char_code(c)) % 100003;
+    }
+    h
+}
+
+pub fn hue_of(slug: string) -> int {
+    hash_of(slug) % 360
+}
+
+fn hsl(hue: int, saturation: int, lightness: int) -> string {
+    "hsl(" + to_string(((hue % 360) + 360) % 360) + ", " + to_string(saturation) + "%, "
+        + to_string(lightness) + "%)"
+}
+
+// A line-art glyph per category, drawn inside a 0..100 box.
+fn glyph(category: string) -> string {
+    if (category == "audio") {
+        return `<path d="M22 58 V47 a28 28 0 0 1 56 0 V58"/>
+                <rect x="12" y="53" width="17" height="27" rx="8"/>
+                <rect x="71" y="53" width="17" height="27" rx="8"/>`;
+    }
+    if (category == "wearables") {
+        return `<rect x="34" y="29" width="32" height="43" rx="10"/>
+                <path d="M42 29 L40 15 H60 L58 29"/>
+                <path d="M42 72 L40 86 H60 L58 72"/>
+                <circle cx="50" cy="50" r="8"/>`;
+    }
+    if (category == "computing") {
+        return `<rect x="22" y="26" width="56" height="38" rx="4"/>
+                <path d="M13 72 H87 L79 64 H21 Z"/>`;
+    }
+    if (category == "photo") {
+        return `<rect x="15" y="33" width="70" height="46" rx="9"/>
+                <circle cx="50" cy="56" r="15"/>
+                <path d="M36 33 l6 -11 h16 l6 11"/>`;
+    }
+    if (category == "home") {
+        return `<path d="M17 49 L50 21 L83 49"/>
+                <path d="M27 46 V81 H73 V46"/>
+                <rect x="43" y="60" width="14" height="21" rx="2"/>`;
+    }
+    if (category == "fitness") {
+        return `<path d="M23 50 H77"/>
+                <rect x="9" y="35" width="13" height="30" rx="5"/>
+                <rect x="78" y="35" width="13" height="30" rx="5"/>`;
+    }
+    `<circle cx="50" cy="50" r="26"/><path d="M35 50 H65"/>`
+}
+
+// Several of these documents get inlined into the same page, so the gradient ids have
+// to be namespaced: with a plain id="bg" every `url(#bg)` on the page resolves to the
+// FIRST definition and every picture ends up wearing the same colors.
+fn ident(slug: string) -> string {
+    var out = "";
+    for c in slug.chars() {
+        let code = char_code(c);
+        let ok = (code >= 97 && code <= 122) || (code >= 48 && code <= 57);
+        out = out + if (ok) { to_string(c) } else { "-" };
+    }
+    out
+}
+
+/// The picture of a product: a gradient field seeded by its slug plus the line-art of
+/// its category. Returned as a standalone SVG document.
+pub fn product_svg(slug: string, category: string) -> string {
+    let hue = hue_of(slug);
+    let partner = hue + 42;
+    let key = "p" + ident(slug);
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="bg-${key}" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="${hsl(hue, 62, 76)}"/>
+      <stop offset="55%" stop-color="${hsl(partner, 48, 55)}"/>
+      <stop offset="100%" stop-color="${hsl(partner + 18, 42, 34)}"/>
+    </linearGradient>
+    <radialGradient id="glow-${key}" cx="0.28" cy="0.22" r="0.75">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="100" height="100" fill="url(#bg-${key})"/>
+  <circle cx="26" cy="20" r="34" fill="url(#glow-${key})"/>
+  <circle cx="80" cy="86" r="30" fill="${hsl(hue - 25, 55, 30)}" opacity="0.28"/>
+  <circle cx="50" cy="52" r="31" fill="#ffffff" opacity="0.12"/>
+  <g fill="none" stroke="#ffffff" stroke-opacity="0.92" stroke-width="3.4"
+     stroke-linecap="round" stroke-linejoin="round">
+    ${glyph(category)}
+  </g>
+</svg>`
+}
+
+/// A flatter, wider version used as the background of the category cards.
+pub fn category_svg(slug: string) -> string {
+    let hue = hue_of(slug);
+    let key = "c" + ident(slug);
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 100" role="img" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="bg-${key}" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="${hsl(hue, 55, 30)}"/>
+      <stop offset="100%" stop-color="${hsl(hue + 34, 60, 52)}"/>
+    </linearGradient>
+  </defs>
+  <rect width="160" height="100" fill="url(#bg-${key})"/>
+  <circle cx="132" cy="18" r="40" fill="#ffffff" opacity="0.10"/>
+  <circle cx="20" cy="92" r="34" fill="#ffffff" opacity="0.08"/>
+  <g transform="translate(30, 0)" fill="none" stroke="#ffffff" stroke-opacity="0.85"
+     stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    ${glyph(slug)}
+  </g>
+</svg>`
+}

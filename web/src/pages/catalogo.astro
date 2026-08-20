@@ -1,0 +1,19 @@
+---
+import Base from '../layouts/Base.astro';
+import CatalogExplorer from '../components/CatalogExplorer';
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+---
+<Base title="Catalogo" description="Filtra por categoria, marca, color, talla, precio y valoracion." active="catalogo">
+  <div class="mx-auto max-w-[1200px] px-5 py-10">
+    <h1 class="text-[clamp(1.8rem,3vw,2.5rem)] font-bold tracking-tight">Catalogo</h1>
+    <p class="mt-2 max-w-[62ch] text-ink-muted">
+      La isla de React consulta <code class="rounded bg-white px-1.5 py-0.5 text-[13px]">/api/products</code> y
+      <code class="rounded bg-white px-1.5 py-0.5 text-[13px]">/api/facets</code> en vivo: los contadores de cada
+      filtro los calcula raylang contra SQLite en cada pulsacion.
+    </p>
+    <div class="mt-8">
+      <CatalogExplorer client:load perPage={9} base={base} />
+    </div>
+  </div>
+</Base>

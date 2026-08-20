@@ -1,0 +1,118 @@
+---
+import Base from '../layouts/Base.astro';
+import ProductCard from '../components/ProductCard';
+import { fetchAtBuild, euros } from '../lib/api';
+import type { Product, ProductPage } from '../lib/api';
+
+// Generated once, at build time: these three rails are plain HTML in the shipped file.
+const featured = await fetchAtBuild<ProductPage>('/api/products?porPagina=8&orden=rating');
+const deals = await fetchAtBuild<ProductPage>('/api/products?oferta=1&orden=discount&porPagina=4');
+const taxonomy = await fetchAtBuild<{ categories: { slug: string; name: string; tagline: string; productCount: number }[] }>('/api/taxonomy');
+
+const hero: Product = featured.items[0];
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+---
+<Base title="Tecnologia elegida a mano" active="home">
+  <section class="relative overflow-hidden bg-[radial-gradient(120%_130%_at_12%_12%,#1d4f5c_0%,#12293f_42%,#0f1729_100%)] text-white">
+    <div class="relative z-10 mx-auto grid max-w-[1200px] items-center gap-12 px-5 py-20 lg:grid-cols-[1.05fr_.95fr]">
+      <div>
+        <span class="inline-flex rounded-full border border-white/20 bg-white/10 px-3.5 py-1.5 text-[12px] font-semibold uppercase tracking-[.08em]">
+          Estatico y rapidisimo · Astro
+        </span>
+        <h1 class="mt-5 max-w-[15ch] text-[clamp(2.1rem,4.4vw,3.4rem)] font-bold leading-tight tracking-tight">
+          La tecnologia que de verdad usas, elegida a mano.
+        </h1>
+        <p class="mt-5 max-w-[46ch] text-lg text-[#c7d3de]">
+          {featured.total} productos con ficha tecnica honesta y stock real. Esta portada se
+          genera en build; solo el carrito y los filtros llevan JavaScript.
+        </p>
+        <div class="mt-7 flex flex-wrap gap-3">
+          <a href={`${base}/catalogo/`} class="rounded-full bg-accent px-8 py-3.5 font-semibold shadow-lg shadow-accent/40 hover:bg-accent-dark">
+            Explorar el catalogo
+          </a>
+          <a href="/carrito" class="rounded-full border border-white/25 bg-white/10 px-8 py-3.5 font-semibold hover:bg-white/20">
+            Ver mi carrito
+          </a>
+        </div>
+        <div class="mt-8 flex flex-wrap gap-7">
+          <div class="border-l-2 border-white/20 pl-3.5"><b class="block text-xl">24 h</b><span class="text-[13px] text-[#a9b9c7]">Envio desde Madrid</span></div>
+          <div class="border-l-2 border-white/20 pl-3.5"><b class="block text-xl">30 dias</b><span class="text-[13px] text-[#a9b9c7]">Para devolverlo</span></div>
+          <div class="border-l-2 border-white/20 pl-3.5"><b class="block text-xl">4,7/5</b><span class="text-[13px] text-[#a9b9c7]">9.400 valoraciones</span></div>
+        </div>
+      </div>
+      <a href={`${base}/producto/${hero.slug}/`} class="rounded-[24px] border border-white/15 bg-white/[.07] p-4.5 shadow-2xl backdrop-blur">
+        <div class="overflow-hidden rounded-[18px]">
+          <img src={hero.image} alt={hero.name} width="800" height="600" class="aspect-[4/3] w-full object-cover" />
+        </div>
+        <div class="flex items-end justify-between gap-3 px-1.5 pb-1 pt-4">
+          <div>
+            <span class="inline-flex rounded-full border border-white/20 bg-white/10 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[.08em]">Mejor valorado</span>
+            <div class="mt-2 text-lg font-semibold">{hero.name}</div>
+            <div class="text-sm text-[#a9b9c7]">{hero.tagline}</div>
+          </div>
+          <div class="text-right">
+            <div class="text-xl font-bold">{euros(hero.priceCents)}</div>
+            {hero.compareAtCents > hero.priceCents && (
+              <div class="text-sm text-[#a9b9c7] line-through">{euros(hero.compareAtCents)}</div>
+            )}
+          </div>
+        </div>
+      </a>
+    </div>
+  </section>
+
+  <section class="mx-auto max-w-[1200px] px-5 py-14">
+    <div class="mb-7 flex flex-wrap items-end justify-between gap-6">
+      <div>
+        <h2 class="text-[clamp(1.5rem,2.6vw,2.1rem)] font-semibold tracking-tight">Compra por categoria</h2>
+        <p class="mt-1.5 text-ink-muted">Seis familias, sin relleno.</p>
+      </div>
+      <a href={`${base}/catalogo/`} class="font-semibold text-accent hover:text-accent-dark">Ver el catalogo completo →</a>
+    </div>
+    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {taxonomy.categories.map((category) => (
+        <a href={`${base}/catalogo/?categoria=${category.slug}`}
+           class="card-hover relative flex min-h-[186px] flex-col justify-end overflow-hidden rounded-[14px] p-5 text-white hover:-translate-y-1">
+          <img src={`/img/category/${category.slug}.svg`} alt="" class="absolute inset-0 h-full w-full object-cover" />
+          <span class="absolute inset-0 bg-gradient-to-t from-[#080e1ac7] to-transparent"></span>
+          <span class="absolute right-3.5 top-3.5 rounded-full border border-white/25 bg-white/15 px-2.5 py-1 text-[12px] font-semibold backdrop-blur">
+            {category.productCount} productos
+          </span>
+          <span class="relative">
+            <h3 class="text-lg font-semibold">{category.name}</h3>
+            <p class="text-[13px] text-white/80">{category.tagline}</p>
+          </span>
+        </a>
+      ))}
+    </div>
+  </section>
+
+  <section class="mx-auto max-w-[1200px] px-5 pb-14">
+    <div class="mb-7 flex flex-wrap items-end justify-between gap-6">
+      <div>
+        <h2 class="text-[clamp(1.5rem,2.6vw,2.1rem)] font-semibold tracking-tight">Los mejor valorados</h2>
+        <p class="mt-1.5 text-ink-muted">Puedes anadirlos al carrito sin salir de aqui.</p>
+      </div>
+      <a href={`${base}/catalogo/?orden=rating`} class="font-semibold text-accent hover:text-accent-dark">Ver todos →</a>
+    </div>
+    <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      {featured.items.map((product) => <ProductCard product={product} base={base} />)}
+    </div>
+  </section>
+
+  <section class="mx-auto max-w-[1200px] px-5 pb-16">
+    <div class="flex flex-wrap items-center justify-between gap-6 rounded-[14px] bg-gradient-to-br from-deep to-[#14586a] p-9 text-white">
+      <div>
+        <span class="inline-flex rounded-full border border-white/20 bg-white/10 px-3.5 py-1.5 text-[12px] font-semibold uppercase tracking-[.08em]">Termina el domingo</span>
+        <h2 class="mt-3 text-[clamp(1.5rem,2.6vw,2.1rem)] font-semibold tracking-tight">Semana Nova: hasta un 25% menos</h2>
+        <p class="mt-1.5 max-w-[52ch] text-[#c6dde2]">{deals.total} referencias rebajadas, sin codigos ni letra pequena.</p>
+      </div>
+      <a href={`${base}/catalogo/?oferta=1`} class="rounded-full bg-accent px-8 py-3.5 font-semibold shadow-lg shadow-accent/40 hover:bg-accent-dark">
+        Ver todas las ofertas
+      </a>
+    </div>
+    <div class="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      {deals.items.map((product) => <ProductCard product={product} base={base} />)}
+    </div>
+  </section>
+</Base>

@@ -1,0 +1,89 @@
+{% params shell: view.Shell, basket: models.Cart, suggestions: [models.Product] %}
+{% extends views/layout %}
+{% import src/view %}
+{% import src/models %}
+{% import src/money %}
+{% import src/cart %}
+{% block body %}
+
+<div class="wrap" style="padding-block: 32px 48px">
+    <h1 style="font-size: clamp(1.8rem, 3vw, 2.5rem)">Tu carrito</h1>
+
+    {% if basket.lines.len() == 0 %}
+    <div class="empty" style="margin-top:28px">
+        <h3>Todavia no has anadido nada</h3>
+        <p class="muted">Empieza por lo que mas se mueve esta semana.</p>
+        <p style="margin-top:18px"><a class="btn btn-primary" href="/catalogo">Ver el catalogo</a></p>
+    </div>
+    {% else %}
+    <div class="cart-layout" style="margin-top:24px">
+        <div class="panel">
+            {% for line in basket.lines %}
+            <div class="cart-line">
+                <a class="shot" href="/producto/{{ line.product_slug }}">
+                    <img src="/img/product/{{ line.product_slug }}.svg" alt="{{ line.product_name }}" width="200" height="200">
+                </a>
+                <div>
+                    <a href="/producto/{{ line.product_slug }}"><b>{{ line.product_name }}</b></a>
+                    <div class="meta">{{ line.color }} · {{ line.size }}</div>
+                    <div class="meta">{{ money.eur(line.unit_cents) }} / unidad</div>
+                    <div class="stock-line small" style="margin-top:6px">
+                        <span class="{{ view.stock_class(line.stock) }}"></span>
+                        <span class="muted">{{ view.stock_label(line.stock) }}</span>
+                    </div>
+                </div>
+                <div class="right">
+                    <b>{{ money.eur(line.unit_cents * line.quantity) }}</b>
+                    <form class="qty-form" action="/carrito/actualizar" method="post">
+                        <input type="hidden" name="variant" value="{{ line.variant_id }}">
+                        <input type="number" name="quantity" value="{{ line.quantity }}" min="0" max="10" aria-label="Unidades">
+                        <button class="btn btn-ghost btn-sm" type="submit">Actualizar</button>
+                    </form>
+                    <form action="/carrito/quitar" method="post">
+                        <input type="hidden" name="variant" value="{{ line.variant_id }}">
+                        <button class="link-danger" type="submit">Quitar</button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <aside class="panel summary">
+            <h3>Resumen</h3>
+            <div class="summary-row"><span class="muted">Subtotal ({{ basket.units }} art.)</span><span>{{ money.eur(basket.subtotal_cents) }}</span></div>
+            <div class="summary-row">
+                <span class="muted">Envio</span>
+                {% if basket.shipping_cents == 0 %}<span style="color: var(--ok); font-weight:600">Gratis</span>
+                {% else %}<span>{{ money.eur(basket.shipping_cents) }}</span>{% endif %}
+            </div>
+            {% if cart.missing_for_free_shipping(basket.subtotal_cents) > 0 %}
+            <p class="tiny muted" style="margin-top:8px">
+                Te faltan {{ money.eur(cart.missing_for_free_shipping(basket.subtotal_cents)) }} para el envio gratis
+            </p>
+            <div class="progress"><i style="width: {{ view.progress_percent(basket.subtotal_cents, cart.free_shipping_from()) }}%"></i></div>
+            {% else %}
+            <p class="tiny" style="margin-top:8px; color: var(--ok)">Envio gratis conseguido 🎉</p>
+            {% endif %}
+            <div class="summary-total"><span>Total</span><span>{{ money.eur(basket.total_cents) }}</span></div>
+            <p style="margin-top:18px"><a class="btn btn-primary btn-block btn-lg" href="/checkout">Finalizar compra</a></p>
+            <p style="margin-top:10px"><a class="btn btn-ghost btn-block" href="/catalogo">Seguir comprando</a></p>
+            <p class="tiny muted center" style="margin-top:14px">Pago seguro · Devoluciones en 30 dias</p>
+        </aside>
+    </div>
+    {% endif %}
+
+    {% if suggestions.len() > 0 %}
+    <section class="section" style="padding-bottom:0">
+        <div class="section-head">
+            <div><h2>Completa el pedido</h2><p>Lo que mejor combina con lo que ya llevas.</p></div>
+        </div>
+        <div class="grid grid-4">
+            {% for product in suggestions %}
+            {% include views/partials/card(product) %}
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+</div>
+
+{% endblock %}

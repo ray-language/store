@@ -1,0 +1,27 @@
+{% params shell: view.Shell, picks: [models.Product] %}
+{% extends views/layout %}
+{% import src/view %}
+{% import src/models %}
+{% block body %}
+
+<div class="wrap" style="padding-block: 64px">
+    <div class="empty">
+        <h1 style="font-size: 3rem">404</h1>
+        <h3 style="margin-top:10px">Esta pagina no existe</h3>
+        <p class="muted">Puede que el producto ya no este disponible o que el enlace este mal.</p>
+        <p style="margin-top:20px"><a class="btn btn-primary" href="/catalogo">Ir al catalogo</a></p>
+    </div>
+
+    {% if picks.len() > 0 %}
+    <section class="section" style="padding-bottom:0">
+        <div class="section-head"><div><h2>Lo mas buscado</h2></div></div>
+        <div class="grid grid-4">
+            {% for product in picks %}
+            {% include views/partials/card(product) %}
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+</div>
+
+{% endblock %}

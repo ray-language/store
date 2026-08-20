@@ -1,0 +1,42 @@
+// Thin layer over `db/sqlite`: where the file lives, how a connection is opened and the
+// row helpers every repository needs (SQLite hands every cell back as text).
+import db/sqlite;
+
+const DEFAULT_PATH: string = "data/store.db";
+
+/// The database file, overridable with STORE_DB (tests, throwaway instances).
+pub fn path() -> string {
+    match (env("STORE_DB")) {
+        Option.Some(configured) => if (configured.trim() == "") { DEFAULT_PATH } else { configured },
+        Option.None => DEFAULT_PATH,
+    }
+}
+
+/// Opens a connection in WAL mode: concurrent readers do not block each other, which
+/// is what a request-per-fiber server needs.
+pub fn open() -> Result<sqlite.Conn, string> {
+    let conn = sqlite.connect(path())?;
+    let none: [string] = [];
+    let _ = sqlite.query(conn, "PRAGMA journal_mode=WAL", none)?;
+    let _ = sqlite.exec(conn, "PRAGMA foreign_keys=ON", none)?;
+    Result.Ok(conn)
+}
+
+/// A cell as int; anything unparseable (including SQL NULL, which arrives as "") is 0.
+pub fn as_int(cell: string) -> int {
+    match (parse_int(cell.trim())) {
+        Option.Some(n) => n,
+        Option.None => 0,
+    }
+}
+
+/// A cell as bool, with SQLite's 0/1 convention.
+pub fn as_bool(cell: string) -> bool {
+    as_int(cell) != 0
+}
+
+/// Escapes a value that will travel inside a LIKE pattern, so a user typing '%' does
+/// not turn their search into a wildcard.
+pub fn like_term(raw: string) -> string {
+    "%" + raw.replace("%", "").replace("_", "").trim().to_lower() + "%"
+}

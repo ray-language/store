@@ -1,0 +1,143 @@
+{% params shell: view.Shell, product: models.Product, chosen: models.Variant, related: [models.Product], notice: string %}
+{% extends views/layout %}
+{% import src/view %}
+{% import src/models %}
+{% import src/money %}
+{% import src/urls %}
+{% import src/imagery %}
+{% import src/palette %}
+{% block body %}
+
+<div class="wrap">
+    <div class="crumbs">
+        <a href="/">Inicio</a><span>/</span>
+        <a href="/catalogo?categoria={{ product.category_slug }}">{{ product.category_name }}</a><span>/</span>
+        <span>{{ product.name }}</span>
+    </div>
+
+    {% if notice != "" %}
+    <div class="notice notice-ok">{{ notice }} · <a href="/carrito" style="text-decoration:underline">Ir al carrito</a></div>
+    {% endif %}
+
+    <div class="product" style="padding-bottom: 40px">
+        <div class="gallery">
+            <div class="main">{{& imagery.product_svg(product.slug, product.category_slug) }}</div>
+            <div class="thumbs">
+                {% for color in product.colors %}
+                <a class="thumb {% if color == chosen.color %}on{% endif %}"
+                   href="{{ urls.product_url(product.slug, color, chosen.size) }}" title="{{ color }}">
+                    <img src="/img/product/{{ product.slug }}.svg" alt="{{ product.name }} en {{ color }}" width="200" height="200">
+                    <span class="thumb-dot" style="background: {{ palette.color_hex(color) }}"></span>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="buy">
+            <span class="card-brand">{{ product.brand_name }}</span>
+            <h1 style="margin-top:6px">{{ product.name }}</h1>
+            <p class="muted" style="margin-top:10px">{{ product.tagline }}</p>
+            <div style="margin-top:12px">{% include views/partials/stars(product.rating, product.reviews) %}</div>
+
+            <div class="price-row" style="margin-top:20px">
+                <span class="price-now">{{ money.eur(chosen.price_cents) }}</span>
+                {% if product.compare_at_cents > product.price_cents %}
+                <span class="price-old">{{ money.eur(product.compare_at_cents) }}</span>
+                <span class="save-pill">Ahorras {{ money.eur(product.compare_at_cents - product.price_cents) }}</span>
+                {% endif %}
+            </div>
+            <p class="tiny muted" style="margin-top:4px">IVA incluido · Envio gratis a partir de 60 €</p>
+
+            {% if product.colors.len() > 1 %}
+            <div class="option-group">
+                <h4>Color: {{ chosen.color }}</h4>
+                <div class="option-list">
+                    {% for color in product.colors %}
+                    <a class="option {% if color == chosen.color %}on{% endif %}{% if !view.color_in_stock(product, color) %} off{% endif %}"
+                       href="{{ urls.product_url(product.slug, color, chosen.size) }}">
+                        <span class="dot" style="background: {{ palette.color_hex(color) }}"></span>{{ color }}
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if product.sizes.len() > 1 %}
+            <div class="option-group">
+                <h4>Version: {{ chosen.size }}</h4>
+                <div class="option-list">
+                    {% for size in product.sizes %}
+                    <a class="option {% if size == chosen.size %}on{% endif %}{% if !view.combination_in_stock(product, chosen.color, size) %} off{% endif %}"
+                       href="{{ urls.product_url(product.slug, chosen.color, size) }}">{{ size }}</a>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="stock-line">
+                <span class="{{ view.stock_class(chosen.stock) }}"></span>
+                <span>{{ view.stock_label(chosen.stock) }}</span>
+                <span class="muted tiny">· SKU {{ chosen.sku }}</span>
+            </div>
+
+            <form action="/carrito/anadir" method="post">
+                <input type="hidden" name="variant" value="{{ chosen.id }}">
+                <input type="hidden" name="back" value="{{ urls.product_url(product.slug, chosen.color, chosen.size) }}">
+                <div class="buy-actions">
+                    <span class="qty">
+                        <button type="button" onclick="var q=this.parentNode.querySelector('input'); q.value=Math.max(1, (parseInt(q.value)||1)-1)" aria-label="Quitar una unidad">−</button>
+                        <input type="number" name="quantity" value="1" min="1" max="10" aria-label="Unidades">
+                        <button type="button" onclick="var q=this.parentNode.querySelector('input'); q.value=Math.min(10, (parseInt(q.value)||1)+1)" aria-label="Anadir una unidad">+</button>
+                    </span>
+                    {% if chosen.stock > 0 %}
+                    <button class="btn btn-primary btn-lg" type="submit" style="flex:1">Anadir al carrito · {{ money.eur(chosen.price_cents) }}</button>
+                    {% else %}
+                    <button class="btn btn-primary btn-lg" type="submit" style="flex:1" disabled>Agotado</button>
+                    {% endif %}
+                </div>
+            </form>
+
+            <div class="perks">
+                <div class="perk"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h11v9H3z"/><path d="M14 10h4l3 3v3h-7z"/><circle cx="7" cy="18.5" r="1.8"/><circle cx="17.5" cy="18.5" r="1.8"/></svg></span><span><b>Envio en 24 h</b> si lo pides antes de las 17:00 (peninsula).</span></div>
+                <div class="perk"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5 4 10l5 5"/><path d="M4 10h10a6 6 0 0 1 0 12h-3"/></svg></span><span><b>30 dias</b> para devolverlo, sin gastos y sin explicaciones.</span></div>
+                <div class="perk"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 5 6v6c0 4.4 3 7.7 7 9 4-1.3 7-4.6 7-9V6z"/><path d="m9 12 2 2 4-4"/></svg></span><span><b>2 anos de garantia</b> gestionada por nosotros.</span></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-2" style="padding-bottom: 24px">
+        <div class="panel">
+            <h2 style="font-size:1.3rem">Sobre este producto</h2>
+            <p class="muted" style="margin-top:12px; line-height:1.7">{{ product.description }}</p>
+        </div>
+        <div class="panel">
+            <h2 style="font-size:1.3rem">Ficha tecnica</h2>
+            <table class="spec-table">
+                {% for feature in product.features %}
+                <tr><td>{{ feature.name }}</td><td>{{ feature.value }}</td></tr>
+                {% endfor %}
+                <tr><td>Marca</td><td>{{ product.brand_name }}</td></tr>
+                <tr><td>Referencias disponibles</td><td>{{ product.variants.len() }} combinaciones</td></tr>
+            </table>
+        </div>
+    </div>
+
+    {% if related.len() > 0 %}
+    <section class="section" style="padding-top: 20px">
+        <div class="section-head">
+            <div>
+                <h2>Quien vio esto tambien miro</h2>
+                <p>Mas de {{ product.category_name }}.</p>
+            </div>
+            <a class="link-more" href="/catalogo?categoria={{ product.category_slug }}">Ver la categoria →</a>
+        </div>
+        <div class="grid grid-4">
+            {% for other in related %}
+            {% include views/partials/card(other) %}
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+</div>
+
+{% endblock %}
