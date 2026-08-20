@@ -2,11 +2,11 @@
 // real queries. Catches anything the SQL layer could get wrong (filters, facet counts,
 // stock, the checkout transaction) without touching data/store.db.
 import db/sqlite;
-import src/schema;
-import src/seed;
-import src/catalog;
-import src/cart;
-import src/orders;
+import src/store/schema;
+import src/store/seed;
+import src/store/catalog;
+import src/store/cart;
+import src/store/orders;
 
 fn fixture() -> sqlite.Conn {
     let conn = match (sqlite.connect(":memory:")) {
@@ -249,7 +249,13 @@ fn checking_out_stores_the_order_and_discounts_the_stock() {
         Result.Ok(c) => c,
         Result.Err(e) => { panic("resolve: " + e) },
     };
-    let placed = match (orders.place(conn, basket, "Ada Lovelace", "ada@ejemplo.com", "Calle Mayor 1")) {
+    let placed = match (orders.place(
+        conn,
+        basket,
+        "Ada Lovelace",
+        "ada@ejemplo.com",
+        "Calle Mayor 1"
+    )) {
         Result.Ok(p) => p,
         Result.Err(e) => { panic("place: " + e) },
     };

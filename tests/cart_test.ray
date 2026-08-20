@@ -1,7 +1,7 @@
 // The cart is pure string arithmetic until it meets the catalog, which makes it the
 // easiest part of the store to pin down with tests.
-import src/cart;
-from src/cart import Entry;
+import src/store/cart;
+from src/store/cart import Entry;
 
 @test
 fn an_empty_string_is_an_empty_cart() {

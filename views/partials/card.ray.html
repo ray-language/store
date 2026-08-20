@@ -1,7 +1,7 @@
 {% params product: models.Product %}
-{% import src/models %}
-{% import src/money %}
-{% import src/view %}
+{% import src/domain/models %}
+{% import src/domain/money %}
+{% import src/ui/view %}
 <a class="card" href="/producto/{{ product.slug }}">
 <div class="card-shot">
 {% if product.stock <= 0 %}

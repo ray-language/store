@@ -1,10 +1,10 @@
 {% params shell: view.Shell, page: catalog.Page, facets: catalog.Facets, query: catalog.Query, heading: string, subheading: string %}
 {% extends views/layout %}
-{% import src/view %}
-{% import src/models %}
-{% import src/catalog %}
-{% import src/money %}
-{% import src/urls %}
+{% import src/ui/view %}
+{% import src/domain/models %}
+{% import src/store/catalog %}
+{% import src/domain/money %}
+{% import src/ui/urls %}
 {% block body %}
 
     <div class="wrap">

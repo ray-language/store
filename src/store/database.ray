@@ -6,7 +6,9 @@ const DEFAULT_PATH: string = "data/store.db";
 
 /// The database file, overridable with STORE_DB (tests, throwaway instances).
 pub fn path() -> string {
-    match (env("STORE_DB")) {
+    match (env(
+    "STORE_DB"
+)) {
         Option.Some(configured) => if (configured.trim() == "") { DEFAULT_PATH } else { configured },
         Option.None => DEFAULT_PATH,
     }

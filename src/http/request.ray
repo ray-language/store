@@ -1,0 +1,83 @@
+// Reading the request. Everything the handlers need to pull out of a `Ctx` lives here, so
+// no page has to know how a filter is spelled in the query string or how the cart travels.
+from web/framework import Ctx, query, cookie_of, form_field;
+import std/url;
+import src/store/catalog;
+
+/// Name of the cookie that carries the cart. Written by `respond.store_cart`.
+pub const CART_COOKIE: string = "nova_cart";
+
+const PAGE_SIZE: int = 9;
+
+/// A comma separated parameter ("nordis,lumen") as a list, trimmed and deduplicated.
+pub fn list_of(raw: string) -> [string] {
+    var out: [string] = [];
+    if (raw.trim() == "") {
+        return out;
+    }
+    for piece in raw.split(",") {
+        let value = piece.trim();
+        if (value != "" && !out.contains(value)) {
+            out.push(value);
+        }
+    }
+    out
+}
+
+/// An integer parameter, falling back when it is missing or not a number.
+pub fn int_or(raw: string, fallback: int) -> int {
+    match (parse_int(raw.trim())) {
+        Option.Some(n) => n,
+        Option.None => fallback,
+    }
+}
+
+/// The whole filter state, read out of the query string.
+pub fn query_of(c: Ctx) -> catalog.Query {
+    var q = catalog.empty_query();
+    q.search = c.query("q");
+    q.category = c.query("categoria");
+    q.brands = list_of(c.query("marca"));
+    q.colors = list_of(c.query("color"));
+    q.sizes = list_of(c.query("talla"));
+    q.min_cents = int_or(c.query("min"), 0) * 100;
+    q.max_cents = int_or(c.query("max"), 0) * 100;
+    q.min_rating = int_or(c.query("valoracion"), 0);
+    q.in_stock = c.query("stock") == "1";
+    q.on_sale = c.query("oferta") == "1";
+    let sort = c.query("orden");
+    q.sort = if (sort == "") { "featured" } else { sort };
+    q.page = int_or(c.query("pagina"), 1);
+    q.per_page = PAGE_SIZE;
+    q
+}
+
+/// The cart line-up as stored in the browser cookie ("" when there is none).
+pub fn cart_of(c: Ctx) -> string {
+    let raw = c.cookie_of(CART_COOKIE);
+    if (raw == "") {
+        return "";
+    }
+    match (url.url_decode(raw)) {
+        Result.Ok(decoded) => decoded,
+        Result.Err(_) => "",
+    }
+}
+
+/// Where a form wants to go back to. Only same-site paths are honoured, so a hidden field
+/// cannot turn a redirect into an open one.
+pub fn back_to(c: Ctx, fallback: string) -> string {
+    let target = c.form_field("back");
+    if (target.starts_with("/") && !target.starts_with("//")) {
+        return target;
+    }
+    fallback
+}
+
+/// "aurora-anc.svg" -> "aurora-anc"
+pub fn slug_of(name: string) -> string {
+    if (name.ends_with(".svg")) {
+        return name.substring(0, name.len() - 4);
+    }
+    name
+}

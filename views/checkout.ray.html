@@ -1,8 +1,8 @@
 {% params shell: view.Shell, basket: models.Cart, error: string, name_value: string, email_value: string, address_value: string %}
 {% extends views/layout %}
-{% import src/view %}
-{% import src/models %}
-{% import src/money %}
+{% import src/ui/view %}
+{% import src/domain/models %}
+{% import src/domain/money %}
 {% block body %}
 
     <div class="wrap" style="padding-block: 32px 48px">

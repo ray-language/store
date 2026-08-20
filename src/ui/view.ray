@@ -1,6 +1,6 @@
 // The view model shared by every page: what the layout (header, nav, cart badge) needs,
 // assembled once per request by `main.ray` and handed to the templates.
-from src/models import Category, Product, Variant;
+from src/domain/models import Category, Product, Variant;
 
 pub struct Shell {
     title: string,
@@ -11,8 +11,22 @@ pub struct Shell {
     categories: [Category],
 }
 
-pub fn shell(title: string, description: string, path: string, search: string, cart_units: int, categories: [Category]) -> Shell {
-    Shell { title: title, description: description, path: path, search: search, cart_units: cart_units, categories: categories }
+pub fn shell(
+    title: string,
+    description: string,
+    path: string,
+    search: string,
+    cart_units: int,
+    categories: [Category]
+) -> Shell {
+    Shell {
+        title: title,
+        description: description,
+        path: path,
+        search: search,
+        cart_units: cart_units,
+        categories: categories
+    }
 }
 
 /// True when `slug` is the section currently being browsed (nav highlighting).
@@ -72,7 +86,16 @@ pub fn pick_variant(product: Product, color: string, size: string) -> Variant {
     if (product.variants.len() > 0) {
         return product.variants[0];
     }
-    Variant { id: 0, product_id: product.id, sku: "", color: "", color_hex: "#ccc", size: "", price_cents: product.price_cents, stock: 0 }
+    Variant {
+        id: 0,
+        product_id: product.id,
+        sku: "",
+        color: "",
+        color_hex: "#ccc",
+        size: "",
+        price_cents: product.price_cents,
+        stock: 0
+    }
 }
 
 /// Is this color/size combination sellable right now?

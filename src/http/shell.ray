@@ -1,0 +1,30 @@
+// The per-request model of the page frame (header, nav, cart badge). Every SSR page needs
+// it, so it is assembled in one place instead of once per handler.
+from web/framework import Ctx, query;
+import db/sqlite;
+import src/store/catalog;
+import src/store/cart;
+import src/ui/view;
+import src/http/request;
+
+/// Title and description are the page's own; the rest is read off the request and the
+/// catalog. `path` drives which nav entry is highlighted.
+pub fn of(
+    conn: sqlite.Conn,
+    c: Ctx,
+    title: string,
+    description: string,
+    path: string
+) -> Result<view.Shell, string> {
+    let categories = catalog.all_categories(conn)?;
+    Result.Ok(
+        view.shell(
+            title,
+            description,
+            path,
+            c.query("q"),
+            cart.units(request.cart_of(c)),
+            categories
+        )
+    )
+}

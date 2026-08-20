@@ -2,8 +2,8 @@
 // facets that feed the sidebar. Every user value travels as a bound parameter (`?n`);
 // only whitelisted identifiers (the ORDER BY) are ever spliced into the SQL.
 import db/sqlite;
-import src/database;
-from src/models import Product, Variant, Feature, Category, Brand, FacetValue;
+import src/store/database;
+from src/domain/models import Product, Variant, Feature, Category, Brand, FacetValue;
 
 /// The filter state of a listing request. Empty string / 0 means "no restriction".
 pub struct Query {
@@ -44,7 +44,21 @@ pub struct Facets {
 const BASE_FROM: string = " FROM products p JOIN categories c ON c.id = p.category_id JOIN brands b ON b.id = p.brand_id";
 
 pub fn empty_query() -> Query {
-    Query { search: "", category: "", brands: [], colors: [], sizes: [], min_cents: 0, max_cents: 0, min_rating: 0, in_stock: false, on_sale: false, sort: "featured", page: 1, per_page: 12 }
+    Query {
+        search: "",
+        category: "",
+        brands: [],
+        colors: [],
+        sizes: [],
+        min_cents: 0,
+        max_cents: 0,
+        min_rating: 0,
+        in_stock: false,
+        on_sale: false,
+        sort: "featured",
+        page: 1,
+        per_page: 12
+    }
 }
 
 // ---------------------------------------------------------------- SQL assembly
@@ -74,7 +88,9 @@ fn build_filter(q: Query) -> Filter {
 
     if (q.search.trim() != "") {
         let mark = placeholder(params, database.like_term(q.search));
-        clauses.push("(LOWER(p.name) LIKE " + mark + " OR LOWER(p.tagline) LIKE " + mark + " OR LOWER(p.description) LIKE " + mark + " OR LOWER(b.name) LIKE " + mark + ")");
+        clauses.push(
+            "(LOWER(p.name) LIKE " + mark + " OR LOWER(p.tagline) LIKE " + mark + " OR LOWER(p.description) LIKE " + mark + " OR LOWER(b.name) LIKE " + mark + ")"
+        );
     }
     if (q.category != "") {
         clauses.push("c.slug = " + placeholder(params, q.category));
@@ -83,10 +99,14 @@ fn build_filter(q: Query) -> Filter {
         clauses.push("b.slug IN (" + placeholders(params, q.brands) + ")");
     }
     if (q.colors.len() > 0) {
-        clauses.push("EXISTS (SELECT 1 FROM variants v WHERE v.product_id = p.id AND v.color IN (" + placeholders(params, q.colors) + "))");
+        clauses.push(
+            "EXISTS (SELECT 1 FROM variants v WHERE v.product_id = p.id AND v.color IN (" + placeholders(params, q.colors) + "))"
+        );
     }
     if (q.sizes.len() > 0) {
-        clauses.push("EXISTS (SELECT 1 FROM variants v WHERE v.product_id = p.id AND v.size IN (" + placeholders(params, q.sizes) + "))");
+        clauses.push(
+            "EXISTS (SELECT 1 FROM variants v WHERE v.product_id = p.id AND v.size IN (" + placeholders(params, q.sizes) + "))"
+        );
     }
     if (q.min_cents > 0) {
         clauses.push("p.price_cents >= " + placeholder(params, to_string(q.min_cents)));
@@ -156,7 +176,28 @@ const PRODUCT_COLUMNS: string = `SELECT p.id, p.slug, p.name, p.tagline, p.descr
         (SELECT COALESCE(SUM(v.stock), 0) FROM variants v WHERE v.product_id = p.id)`;
 
 fn row_to_product(row: [string]) -> Product {
-    Product { id: database.as_int(row[0]), slug: row[1], name: row[2], tagline: row[3], description: row[4], category_slug: row[5], category_name: row[6], brand_slug: row[7], brand_name: row[8], price_cents: database.as_int(row[9]), compare_at_cents: database.as_int(row[10]), rating: database.as_int(row[11]), reviews: database.as_int(row[12]), badge: row[13], featured: database.as_bool(row[14]), stock: database.as_int(row[15]), colors: [], sizes: [], variants: [], features: [] }
+    Product {
+        id: database.as_int(row[0]),
+        slug: row[1],
+        name: row[2],
+        tagline: row[3],
+        description: row[4],
+        category_slug: row[5],
+        category_name: row[6],
+        brand_slug: row[7],
+        brand_name: row[8],
+        price_cents: database.as_int(row[9]),
+        compare_at_cents: database.as_int(row[10]),
+        rating: database.as_int(row[11]),
+        reviews: database.as_int(row[12]),
+        badge: row[13],
+        featured: database.as_bool(row[14]),
+        stock: database.as_int(row[15]),
+        colors: [],
+        sizes: [],
+        variants: [],
+        features: []
+    }
 }
 
 fn id_list(products: [Product]) -> string {
@@ -180,12 +221,25 @@ fn hydrate(conn: sqlite.Conn, products: [Product]) -> Result<int, string> {
     }
     let ids = id_list(products);
 
-    let variant_rows = sqlite.query(conn, "SELECT id, product_id, sku, color, color_hex, size, price_cents, stock FROM variants" + " WHERE product_id IN (" + ids + ") ORDER BY id ASC", none)?;
+    let variant_rows = sqlite.query(
+        conn,
+        "SELECT id, product_id, sku, color, color_hex, size, price_cents, stock FROM variants" + " WHERE product_id IN (" + ids + ") ORDER BY id ASC",
+        none
+    )?;
     for row in variant_rows {
         let owner = database.as_int(row[1]);
         match (by_id.get(owner)) {
             Option.Some(product) => {
-                let variant = Variant { id: database.as_int(row[0]), product_id: owner, sku: row[2], color: row[3], color_hex: row[4], size: row[5], price_cents: database.as_int(row[6]), stock: database.as_int(row[7]) };
+                let variant = Variant {
+                    id: database.as_int(row[0]),
+                    product_id: owner,
+                    sku: row[2],
+                    color: row[3],
+                    color_hex: row[4],
+                    size: row[5],
+                    price_cents: database.as_int(row[6]),
+                    stock: database.as_int(row[7])
+                };
                 product.variants.push(variant);
                 if (!product.colors.contains(variant.color)) {
                     product.colors.push(variant.color);
@@ -198,7 +252,11 @@ fn hydrate(conn: sqlite.Conn, products: [Product]) -> Result<int, string> {
         }
     }
 
-    let feature_rows = sqlite.query(conn, "SELECT product_id, name, value FROM features WHERE product_id IN (" + ids + ")" + " ORDER BY position ASC, id ASC", none)?;
+    let feature_rows = sqlite.query(
+        conn,
+        "SELECT product_id, name, value FROM features WHERE product_id IN (" + ids + ")" + " ORDER BY position ASC, id ASC",
+        none
+    )?;
     for row in feature_rows {
         match (by_id.get(database.as_int(row[0]))) {
             Option.Some(product) => {
@@ -246,14 +304,22 @@ pub fn search(conn: sqlite.Conn, q: Query) -> Result<Page, string> {
     }
     let limit = placeholder(params, to_string(per_page));
     let offset = placeholder(params, to_string((page - 1) * per_page));
-    let items = fetch_products(conn, PRODUCT_COLUMNS + BASE_FROM + filter.sql + order_by(q.sort) + " LIMIT " + limit + " OFFSET " + offset, params)?;
+    let items = fetch_products(
+        conn,
+        PRODUCT_COLUMNS + BASE_FROM + filter.sql + order_by(q.sort) + " LIMIT " + limit + " OFFSET " + offset,
+        params
+    )?;
 
     Result.Ok(Page { items: items, total: total, page: page, per_page: per_page, pages: pages })
 }
 
 /// A single product by slug, fully hydrated.
 pub fn by_slug(conn: sqlite.Conn, slug: string) -> Result<Option<Product>, string> {
-    let products = fetch_products(conn, PRODUCT_COLUMNS + BASE_FROM + " WHERE p.slug = ?1", [slug])?;
+    let products = fetch_products(
+        conn,
+        PRODUCT_COLUMNS + BASE_FROM + " WHERE p.slug = ?1",
+        [slug]
+    )?;
     if (products.len() == 0) {
         return Result.Ok(Option.None);
     }
@@ -262,20 +328,36 @@ pub fn by_slug(conn: sqlite.Conn, slug: string) -> Result<Option<Product>, strin
 
 /// Products of the same category, excluding the one being viewed.
 pub fn related(conn: sqlite.Conn, product: Product, how_many: int) -> Result<[Product], string> {
-    fetch_products(conn, PRODUCT_COLUMNS + BASE_FROM + " WHERE c.slug = ?1 AND p.id <> ?2" + " ORDER BY p.rating DESC, p.reviews DESC LIMIT ?3", [product.category_slug, to_string(product.id), to_string(how_many)])
+    fetch_products(
+        conn,
+        PRODUCT_COLUMNS + BASE_FROM + " WHERE c.slug = ?1 AND p.id <> ?2" + " ORDER BY p.rating DESC, p.reviews DESC LIMIT ?3",
+        [product.category_slug, to_string(product.id), to_string(how_many)]
+    )
 }
 
 /// The home page rails.
 pub fn featured(conn: sqlite.Conn, how_many: int) -> Result<[Product], string> {
-    fetch_products(conn, PRODUCT_COLUMNS + BASE_FROM + " WHERE p.featured = 1" + " ORDER BY p.rating DESC, p.reviews DESC LIMIT ?1", [to_string(how_many)])
+    fetch_products(
+        conn,
+        PRODUCT_COLUMNS + BASE_FROM + " WHERE p.featured = 1" + " ORDER BY p.rating DESC, p.reviews DESC LIMIT ?1",
+        [to_string(how_many)]
+    )
 }
 
 pub fn on_sale(conn: sqlite.Conn, how_many: int) -> Result<[Product], string> {
-    fetch_products(conn, PRODUCT_COLUMNS + BASE_FROM + " WHERE p.compare_at_cents > p.price_cents" + " ORDER BY (p.compare_at_cents - p.price_cents) DESC LIMIT ?1", [to_string(how_many)])
+    fetch_products(
+        conn,
+        PRODUCT_COLUMNS + BASE_FROM + " WHERE p.compare_at_cents > p.price_cents" + " ORDER BY (p.compare_at_cents - p.price_cents) DESC LIMIT ?1",
+        [to_string(how_many)]
+    )
 }
 
 pub fn newest(conn: sqlite.Conn, how_many: int) -> Result<[Product], string> {
-    fetch_products(conn, PRODUCT_COLUMNS + BASE_FROM + " ORDER BY p.created_at DESC LIMIT ?1", [to_string(how_many)])
+    fetch_products(
+        conn,
+        PRODUCT_COLUMNS + BASE_FROM + " ORDER BY p.created_at DESC LIMIT ?1",
+        [to_string(how_many)]
+    )
 }
 
 pub fn all_categories(conn: sqlite.Conn) -> Result<[Category], string> {
@@ -285,7 +367,16 @@ pub fn all_categories(conn: sqlite.Conn) -> Result<[Category], string> {
          FROM categories c ORDER BY c.sort_order ASC`, none)?;
     var out: [Category] = [];
     for row in rows {
-        out.push(Category { id: database.as_int(row[0]), slug: row[1], name: row[2], tagline: row[3], icon: row[4], product_count: database.as_int(row[5]) });
+        out.push(
+            Category {
+                id: database.as_int(row[0]),
+                slug: row[1],
+                name: row[2],
+                tagline: row[3],
+                icon: row[4],
+                product_count: database.as_int(row[5])
+            }
+        );
     }
     Result.Ok(out)
 }
@@ -297,74 +388,212 @@ pub fn all_brands(conn: sqlite.Conn) -> Result<[Brand], string> {
          FROM brands b ORDER BY b.name ASC`, none)?;
     var out: [Brand] = [];
     for row in rows {
-        out.push(Brand { id: database.as_int(row[0]), slug: row[1], name: row[2], tagline: row[3], product_count: database.as_int(row[4]) });
+        out.push(
+            Brand {
+                id: database.as_int(row[0]),
+                slug: row[1],
+                name: row[2],
+                tagline: row[3],
+                product_count: database.as_int(row[4])
+            }
+        );
     }
     Result.Ok(out)
 }
 
 // A facet is counted with the rest of the query applied but ITS OWN dimension dropped —
 // otherwise picking one brand would make every other brand show a count of zero.
-fn facet_rows(conn: sqlite.Conn, q: Query, value: string, label: string, join: string, order: string) -> Result<[[string]], string> {
+fn facet_rows(
+    conn: sqlite.Conn,
+    q: Query,
+    value: string,
+    label: string,
+    join: string,
+    order: string
+) -> Result<[[string]], string> {
     let filter = build_filter(q);
-    sqlite.query(conn, "SELECT " + value + ", " + label + ", COUNT(DISTINCT p.id)" + BASE_FROM + join + filter.sql + " GROUP BY " + value + ", " + label + " ORDER BY " + order, filter.params)
+    sqlite.query(
+        conn,
+        "SELECT " + value + ", " + label + ", COUNT(DISTINCT p.id)" + BASE_FROM + join + filter.sql + " GROUP BY " + value + ", " + label + " ORDER BY " + order,
+        filter.params
+    )
 }
 
 fn without_brands(q: Query) -> Query {
-    Query { search: q.search, category: q.category, brands: [], colors: q.colors, sizes: q.sizes, min_cents: q.min_cents, max_cents: q.max_cents, min_rating: q.min_rating, in_stock: q.in_stock, on_sale: q.on_sale, sort: q.sort, page: 1, per_page: q.per_page }
+    Query {
+        search: q.search,
+        category: q.category,
+        brands: [],
+        colors: q.colors,
+        sizes: q.sizes,
+        min_cents: q.min_cents,
+        max_cents: q.max_cents,
+        min_rating: q.min_rating,
+        in_stock: q.in_stock,
+        on_sale: q.on_sale,
+        sort: q.sort,
+        page: 1,
+        per_page: q.per_page
+    }
 }
 
 fn without_colors(q: Query) -> Query {
-    Query { search: q.search, category: q.category, brands: q.brands, colors: [], sizes: q.sizes, min_cents: q.min_cents, max_cents: q.max_cents, min_rating: q.min_rating, in_stock: q.in_stock, on_sale: q.on_sale, sort: q.sort, page: 1, per_page: q.per_page }
+    Query {
+        search: q.search,
+        category: q.category,
+        brands: q.brands,
+        colors: [],
+        sizes: q.sizes,
+        min_cents: q.min_cents,
+        max_cents: q.max_cents,
+        min_rating: q.min_rating,
+        in_stock: q.in_stock,
+        on_sale: q.on_sale,
+        sort: q.sort,
+        page: 1,
+        per_page: q.per_page
+    }
 }
 
 fn without_sizes(q: Query) -> Query {
-    Query { search: q.search, category: q.category, brands: q.brands, colors: q.colors, sizes: [], min_cents: q.min_cents, max_cents: q.max_cents, min_rating: q.min_rating, in_stock: q.in_stock, on_sale: q.on_sale, sort: q.sort, page: 1, per_page: q.per_page }
+    Query {
+        search: q.search,
+        category: q.category,
+        brands: q.brands,
+        colors: q.colors,
+        sizes: [],
+        min_cents: q.min_cents,
+        max_cents: q.max_cents,
+        min_rating: q.min_rating,
+        in_stock: q.in_stock,
+        on_sale: q.on_sale,
+        sort: q.sort,
+        page: 1,
+        per_page: q.per_page
+    }
 }
 
 fn without_category(q: Query) -> Query {
-    Query { search: q.search, category: "", brands: q.brands, colors: q.colors, sizes: q.sizes, min_cents: q.min_cents, max_cents: q.max_cents, min_rating: q.min_rating, in_stock: q.in_stock, on_sale: q.on_sale, sort: q.sort, page: 1, per_page: q.per_page }
+    Query {
+        search: q.search,
+        category: "",
+        brands: q.brands,
+        colors: q.colors,
+        sizes: q.sizes,
+        min_cents: q.min_cents,
+        max_cents: q.max_cents,
+        min_rating: q.min_rating,
+        in_stock: q.in_stock,
+        on_sale: q.on_sale,
+        sort: q.sort,
+        page: 1,
+        per_page: q.per_page
+    }
 }
 
 fn without_price(q: Query) -> Query {
-    Query { search: q.search, category: q.category, brands: q.brands, colors: q.colors, sizes: q.sizes, min_cents: 0, max_cents: 0, min_rating: q.min_rating, in_stock: q.in_stock, on_sale: q.on_sale, sort: q.sort, page: 1, per_page: q.per_page }
+    Query {
+        search: q.search,
+        category: q.category,
+        brands: q.brands,
+        colors: q.colors,
+        sizes: q.sizes,
+        min_cents: 0,
+        max_cents: 0,
+        min_rating: q.min_rating,
+        in_stock: q.in_stock,
+        on_sale: q.on_sale,
+        sort: q.sort,
+        page: 1,
+        per_page: q.per_page
+    }
 }
 
 /// The sidebar facets for the current query.
 pub fn facets(conn: sqlite.Conn, q: Query) -> Result<Facets, string> {
     var categories: [FacetValue] = [];
     for row in facet_rows(conn, without_category(q), "c.slug", "c.name", "", "c.sort_order ASC")? {
-        categories.push(FacetValue { value: row[0], label: row[1], hex: "", count: database.as_int(row[2]) });
+        categories.push(
+            FacetValue { value: row[0], label: row[1], hex: "", count: database.as_int(row[2]) }
+        );
     }
     var brands: [FacetValue] = [];
     for row in facet_rows(conn, without_brands(q), "b.slug", "b.name", "", "b.name ASC")? {
-        brands.push(FacetValue { value: row[0], label: row[1], hex: "", count: database.as_int(row[2]) });
+        brands.push(
+            FacetValue { value: row[0], label: row[1], hex: "", count: database.as_int(row[2]) }
+        );
     }
     var colors: [FacetValue] = [];
     let color_join = " JOIN variants fv ON fv.product_id = p.id";
     let color_filter = build_filter(without_colors(q));
-    let color_data = sqlite.query(conn, "SELECT fv.color, MIN(fv.color_hex), COUNT(DISTINCT p.id)" + BASE_FROM + color_join + color_filter.sql + " GROUP BY fv.color ORDER BY fv.color ASC", color_filter.params)?;
+    let color_data = sqlite.query(
+        conn,
+        "SELECT fv.color, MIN(fv.color_hex), COUNT(DISTINCT p.id)" + BASE_FROM + color_join + color_filter.sql + " GROUP BY fv.color ORDER BY fv.color ASC",
+        color_filter.params
+    )?;
     for row in color_data {
-        colors.push(FacetValue { value: row[0], label: row[0], hex: row[1], count: database.as_int(row[2]) });
+        colors.push(
+            FacetValue { value: row[0], label: row[0], hex: row[1], count: database.as_int(row[2]) }
+        );
     }
     var sizes: [FacetValue] = [];
-    for row in facet_rows(conn, without_sizes(q), "fv.size", "fv.size", " JOIN variants fv ON fv.product_id = p.id", "fv.size ASC")? {
-        sizes.push(FacetValue { value: row[0], label: row[1], hex: "", count: database.as_int(row[2]) });
+    for row in facet_rows(
+        conn,
+        without_sizes(q),
+        "fv.size",
+        "fv.size",
+        " JOIN variants fv ON fv.product_id = p.id",
+        "fv.size ASC"
+    )? {
+        sizes.push(
+            FacetValue { value: row[0], label: row[1], hex: "", count: database.as_int(row[2]) }
+        );
     }
 
     let price_filter = build_filter(without_price(q));
-    let price_rows = sqlite.query(conn, "SELECT COALESCE(MIN(p.price_cents), 0), COALESCE(MAX(p.price_cents), 0)" + BASE_FROM + price_filter.sql, price_filter.params)?;
+    let price_rows = sqlite.query(
+        conn,
+        "SELECT COALESCE(MIN(p.price_cents), 0), COALESCE(MAX(p.price_cents), 0)" + BASE_FROM + price_filter.sql,
+        price_filter.params
+    )?;
     let low = if (price_rows.len() > 0) { database.as_int(price_rows[0][0]) } else { 0 };
     let high = if (price_rows.len() > 0) { database.as_int(price_rows[0][1]) } else { 0 };
 
-    Result.Ok(Facets { categories: categories, brands: brands, colors: colors, sizes: sizes, min_cents: low, max_cents: high })
+    Result.Ok(
+        Facets {
+            categories: categories,
+            brands: brands,
+            colors: colors,
+            sizes: sizes,
+            min_cents: low,
+            max_cents: high
+        }
+    )
 }
 
 /// A variant by id, used by the cart to price a line.
 pub fn variant_by_id(conn: sqlite.Conn, id: int) -> Result<Option<Variant>, string> {
-    let rows = sqlite.query(conn, "SELECT id, product_id, sku, color, color_hex, size, price_cents, stock FROM variants WHERE id = ?1", [to_string(id)])?;
+    let rows = sqlite.query(
+        conn,
+        "SELECT id, product_id, sku, color, color_hex, size, price_cents, stock FROM variants WHERE id = ?1",
+        [to_string(id)]
+    )?;
     if (rows.len() == 0) {
         return Result.Ok(Option.None);
     }
     let row = rows[0];
-    Result.Ok(Option.Some(Variant { id: database.as_int(row[0]), product_id: database.as_int(row[1]), sku: row[2], color: row[3], color_hex: row[4], size: row[5], price_cents: database.as_int(row[6]), stock: database.as_int(row[7]) }))
+    Result.Ok(
+        Option.Some(
+            Variant {
+                id: database.as_int(row[0]),
+                product_id: database.as_int(row[1]),
+                sku: row[2],
+                color: row[3],
+                color_hex: row[4],
+                size: row[5],
+                price_cents: database.as_int(row[6]),
+                stock: database.as_int(row[7])
+            }
+        )
+    )
 }

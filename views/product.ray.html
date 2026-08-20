@@ -1,11 +1,11 @@
 {% params shell: view.Shell, product: models.Product, chosen: models.Variant, related: [models.Product], notice: string %}
 {% extends views/layout %}
-{% import src/view %}
-{% import src/models %}
-{% import src/money %}
-{% import src/urls %}
-{% import src/imagery %}
-{% import src/palette %}
+{% import src/ui/view %}
+{% import src/domain/models %}
+{% import src/domain/money %}
+{% import src/ui/urls %}
+{% import src/ui/imagery %}
+{% import src/domain/palette %}
 {% block body %}
 
     <div class="wrap">

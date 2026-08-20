@@ -1,4 +1,12 @@
-/* Nova — design system of the embedded storefront.
+// The storefront stylesheet, in the binary rather than on disk. The `.ray.html`
+// templates already compile INTO the program, so keeping the CSS here is what makes the
+// embedded frontend truly self-contained: `ray build --native` produces one file that
+// serves the whole store without a single asset next to it.
+//
+// It is a backtick literal (multiline, double quotes are literal). Keep it free of
+// backticks and of `${`, which would be read as an interpolation.
+pub fn stylesheet() -> string {
+    `/* Nova — design system of the embedded storefront.
    One file, no build step: custom properties + a handful of components. */
 
 :root {
@@ -501,4 +509,6 @@ button, input, select, textarea { font: inherit; color: inherit; }
     .cart-line { grid-template-columns: 72px minmax(0, 1fr); }
     .cart-line .right { grid-column: 1 / -1; align-items: start; }
     .field-row { grid-template-columns: 1fr; }
+}
+`
 }

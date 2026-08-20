@@ -1,6 +1,6 @@
 // Money is stored in cents and only ever formatted at the edge; these tests fix the
 // Spanish notation (dot for thousands, comma for decimals).
-import src/money;
+import src/domain/money;
 
 @test
 fn amounts_use_spanish_notation() {

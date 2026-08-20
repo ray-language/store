@@ -1,7 +1,7 @@
 // Filters are links, so the URL builder IS the filter UI: if these break, the store
 // silently loses state between clicks.
-import src/urls;
-import src/catalog;
+import src/ui/urls;
+import src/store/catalog;
 
 fn base() -> catalog.Query {
     catalog.empty_query()

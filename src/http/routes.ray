@@ -1,0 +1,82 @@
+// The route table: the one place that says which URL runs which handler.
+//
+// It is a BUILDER, not a built `App`, because the framework calls it inside each request's
+// task: an `App` holds closures, and the isolated-heap actor model does not let a closure
+// cross threads in the native backend. Building it is cheap and the same source runs on
+// the VM and compiles with `ray build --native`.
+from web/framework import
+    new_app,
+    GET,
+    POST,
+    static_files_cached,
+    not_found,
+    log_requests,
+    after,
+    cors,
+    header,
+    status,
+    html,
+    App,
+    Ctx,
+    Res;
+import db/sqlite;
+import src/http/pages;
+import src/http/purchase;
+import src/http/assets;
+import src/http/api;
+import src/http/respond;
+from src/http/respond import Reply;
+
+pub fn build() -> App {
+    var app = new_app();
+    app.log_requests();
+
+    // The SSR storefront needs nothing from disk: its HTML compiles in from the
+    // `.ray.html` templates, its pictures are generated (see `src/ui/imagery`) and its CSS
+    // is a raylang module. Only the Astro build is a real directory, mounted as-is.
+    app.static_files_cached("/app/", "web/dist", 300);
+
+    // Storefront
+    app.GET("/", pages.home);
+    app.GET("/catalogo", pages.catalog_page);
+    app.GET("/ofertas", pages.deals);
+    app.GET("/producto/:slug", pages.product);
+
+    // Buying flow
+    app.GET("/carrito", purchase.basket);
+    app.POST("/carrito/anadir", purchase.add);
+    app.POST("/carrito/actualizar", purchase.update);
+    app.POST("/carrito/quitar", purchase.remove);
+    app.GET("/checkout", purchase.checkout);
+    app.POST("/checkout", purchase.place_order);
+    app.GET("/pedido/:reference", purchase.confirmation);
+
+    // Assets served out of the binary
+    app.GET("/assets/app.css", assets.stylesheet);
+    app.GET("/img/product/:slug", assets.product_image);
+    app.GET("/img/category/:slug", assets.category_image);
+    app.GET("/img/favicon.svg", assets.favicon);
+
+    // JSON API
+    app.cors("*");
+    app.GET("/api/products", api.products);
+    app.GET("/api/products/:slug", api.product);
+    app.GET("/api/taxonomy", api.taxonomy);
+    app.GET("/api/facets", api.facets);
+    app.GET("/api/cart", api.basket);
+    app.POST("/api/cart/:action", api.mutate_basket);
+    app.GET("/salud", api.health);
+
+    app.after(fn(c: Ctx, r: Res) {
+        r.header("X-Content-Type-Options", "nosniff");
+        r.header("Referrer-Policy", "strict-origin-when-cross-origin");
+    });
+
+    app.not_found(fn(c: Ctx, r: Res) {
+        respond.with_db(c, r, fn(conn: sqlite.Conn) -> Result<Reply, string> {
+            Result.Ok(Reply.Missing)
+        });
+    });
+
+    app
+}

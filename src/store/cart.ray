@@ -2,8 +2,8 @@
 // server keeps no mutable shared state: every request re-reads the line-up and re-prices
 // it against the catalog, which is also what makes the price impossible to tamper with.
 import db/sqlite;
-import src/database;
-from src/models import Cart, CartLine;
+import src/store/database;
+from src/domain/models import Cart, CartLine;
 
 const FREE_SHIPPING_FROM_CENTS: int = 6000;
 
@@ -87,7 +87,9 @@ pub fn set_quantity(raw: string, variant_id: int, quantity: int) -> string {
         if (entry.variant_id != variant_id) {
             kept.push(entry);
         } else if (quantity > 0) {
-            kept.push(Entry { variant_id: variant_id, quantity: cap(quantity, MAX_UNITS_PER_LINE) });
+            kept.push(
+                Entry { variant_id: variant_id, quantity: cap(quantity, MAX_UNITS_PER_LINE) }
+            );
         }
     }
     serialize(kept)
@@ -139,9 +141,13 @@ pub fn resolve(conn: sqlite.Conn, raw: string) -> Result<Cart, string> {
     for entry in entries {
         ids.push(to_string(entry.variant_id));
     }
-    let rows = sqlite.query(conn, `SELECT v.id, p.slug, p.name, v.color, v.color_hex, v.size, v.price_cents, v.stock
+    let rows = sqlite.query(
+        conn,
+        `SELECT v.id, p.slug, p.name, v.color, v.color_hex, v.size, v.price_cents, v.stock
          FROM variants v JOIN products p ON p.id = v.product_id
-         WHERE v.id IN (` + ids.join(", ") + ")", [])?;
+         WHERE v.id IN (` + ids.join(", ") + ")",
+        []
+    )?;
 
     var catalog_rows: Map<int, [string]> = Map.new();
     for row in rows {
@@ -158,7 +164,19 @@ pub fn resolve(conn: sqlite.Conn, raw: string) -> Result<Cart, string> {
                 let quantity = cap(entry.quantity, at_least_zero(stock));
                 if (quantity > 0) {
                     let unit = database.as_int(row[6]);
-                    lines.push(CartLine { variant_id: entry.variant_id, product_slug: row[1], product_name: row[2], color: row[3], color_hex: row[4], size: row[5], unit_cents: unit, quantity: quantity, stock: stock });
+                    lines.push(
+                        CartLine {
+                            variant_id: entry.variant_id,
+                            product_slug: row[1],
+                            product_name: row[2],
+                            color: row[3],
+                            color_hex: row[4],
+                            size: row[5],
+                            unit_cents: unit,
+                            quantity: quantity,
+                            stock: stock
+                        }
+                    );
                     total_units = total_units + quantity;
                     subtotal = subtotal + unit * quantity;
                 }
@@ -168,5 +186,13 @@ pub fn resolve(conn: sqlite.Conn, raw: string) -> Result<Cart, string> {
     }
 
     let shipping = shipping_for(subtotal);
-    Result.Ok(Cart { lines: lines, units: total_units, subtotal_cents: subtotal, shipping_cents: shipping, total_cents: subtotal + shipping })
+    Result.Ok(
+        Cart {
+            lines: lines,
+            units: total_units,
+            subtotal_cents: subtotal,
+            shipping_cents: shipping,
+            total_cents: subtotal + shipping
+        }
+    )
 }

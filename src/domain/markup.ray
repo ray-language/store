@@ -3,7 +3,12 @@
 // the search form) have to escape themselves.
 /// Escapes text for use inside an element or a double-quoted attribute.
 pub fn escape(raw: string) -> string {
-    raw.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;").replace("'", "&#39;")
+    raw
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace("\"", "&quot;")
+        .replace("'", "&#39;")
 }
 
 /// `<input type="hidden" name="..." value="...">`, with both sides escaped.

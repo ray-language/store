@@ -1,0 +1,744 @@
+// The demo catalog: categories, brands, products with their variants (color x size) and
+// their technical sheet. Everything is deterministic — no randomness — so two runs of
+// `ray run reseed` produce byte-identical data.
+import db/sqlite;
+import src/store/database;
+import src/domain/palette;
+import std/time;
+
+struct SeedProduct {
+    slug: string,
+    name: string,
+    tagline: string,
+    description: string,
+    category: string,
+    brand: string,
+    price_cents: int,
+    compare_at_cents: int,
+    rating: int,
+    reviews: int,
+    badge: string,
+    featured: bool,
+    colors: [string],
+    sizes: [string],
+    size_step_cents: int,
+    features: [[string]],
+}
+
+fn categories() -> [[string]] {
+    [
+        ["audio", "Audio", "Sonido que se siente, no solo se escucha", "headphones"],
+        ["wearables", "Wearables", "Tu dia a dia, medido al detalle", "watch"],
+        ["computing", "Informatica", "Potencia silenciosa para trabajar y crear", "laptop"],
+        ["photo", "Fotografia", "Optica y luz para contar historias", "camera"],
+        ["home", "Hogar inteligente", "Una casa que se adelanta a ti", "home"],
+        ["fitness", "Fitness", "Entrena mejor, no mas", "activity"]
+    ]
+}
+
+fn brands() -> [[string]] {
+    [
+        ["nordis", "Nordis", "Acustica nordica desde 1998"],
+        ["lumen", "Lumen", "Optica de precision"],
+        ["aurea", "Aurea", "Herramientas para creadores"],
+        ["kestrel", "Kestrel", "Disenado para la intemperie"],
+        ["volt", "Volt", "Energia domestica conectada"],
+        ["marea", "Marea", "Diseno calido, materiales honestos"],
+        ["fenix", "Fenix", "Rendimiento sin concesiones"],
+        ["orbita", "Orbita", "Tecnologia que desaparece"]
+    ]
+}
+
+fn catalog() -> [SeedProduct] {
+    [
+        SeedProduct {
+            slug: "aurora-anc",
+            name: "Aurora ANC",
+            brand: "nordis",
+            category: "audio",
+            tagline: "Cancelacion activa de 42 dB y 60 h de bateria",
+            description: "Auriculares de diadema con cancelacion adaptativa que mide el ruido 48.000 veces por segundo. Los almohadillados de espuma viscoelastica y el arco de aluminio reciclado reparten los 248 g de forma que a la cuarta hora sigues sin notarlos. El modo transparencia deja pasar las voces sin quitartelos.",
+            price_cents: 24900,
+            compare_at_cents: 31900,
+            rating: 48,
+            reviews: 1284,
+            badge: "Mas vendido",
+            featured: true,
+            colors: ["Negro", "Arena", "Azul noche"],
+            sizes: ["Unica"],
+            size_step_cents: 0,
+            features: [
+                ["Autonomia", "60 h (30 h con ANC)"],
+                ["Cancelacion", "Hibrida adaptativa, 42 dB"],
+                ["Conectividad", "Bluetooth 5.4 + LDAC"],
+                ["Peso", "248 g"],
+                ["Carga", "USB-C, 5 min = 6 h"]
+            ]
+        },
+        SeedProduct {
+            slug: "pulse-buds-pro",
+            name: "Pulse Buds Pro",
+            brand: "lumen",
+            category: "audio",
+            tagline: "Auriculares intraurales con audio espacial",
+            description: "Cuatro microfonos por auricular, seguimiento de cabeza y un estuche que aguanta cinco recargas completas. El ajuste in-ear con tres tallas de almohadilla sella sin presionar, y el sensor de piel pausa la musica en cuanto te quitas uno.",
+            price_cents: 12900,
+            compare_at_cents: 15900,
+            rating: 46,
+            reviews: 862,
+            badge: "Oferta",
+            featured: true,
+            colors: ["Blanco", "Negro", "Lavanda"],
+            sizes: ["Unica"],
+            size_step_cents: 0,
+            features: [
+                ["Autonomia", "8 h + 32 h con estuche"],
+                ["Resistencia", "IPX5"],
+                ["Audio", "Espacial con seguimiento de cabeza"],
+                ["Carga", "USB-C e inalambrica Qi"]
+            ]
+        },
+        SeedProduct {
+            slug: "cadence-360",
+            name: "Cadence 360",
+            brand: "marea",
+            category: "audio",
+            tagline: "Altavoz portatil de sonido envolvente real",
+            description: "Dos transductores de rango completo y un radiador pasivo enfrentados a 180 grados: el sonido llena la habitacion en lugar de apuntarte. Carcasa de corcho prensado y tejido reciclado, con correa de cuero vegetal.",
+            price_cents: 8900,
+            compare_at_cents: 0,
+            rating: 45,
+            reviews: 431,
+            badge: "",
+            featured: false,
+            colors: ["Arena", "Verde salvia", "Grafito"],
+            sizes: ["Unica"],
+            size_step_cents: 0,
+            features: [
+                ["Potencia", "2 x 15 W RMS"],
+                ["Autonomia", "18 h"],
+                ["Resistencia", "IP67, flota"],
+                ["Emparejado", "Estereo con dos unidades"]
+            ]
+        },
+        SeedProduct {
+            slug: "studio-one-mic",
+            name: "Studio One",
+            brand: "aurea",
+            category: "audio",
+            tagline: "Microfono USB de condensador con patron dual",
+            description: "Capsula de 25 mm con conmutador cardioide/omnidireccional, monitorizacion sin latencia por jack y un cuerpo de zamak que no vibra. Trae soporte de sobremesa con rosca estandar y filtro antipop iman.",
+            price_cents: 17900,
+            compare_at_cents: 19900,
+            rating: 47,
+            reviews: 296,
+            badge: "",
+            featured: false,
+            colors: ["Grafito", "Plata"],
+            sizes: ["Basico", "Kit con brazo"],
+            size_step_cents: 4500,
+            features: [
+                ["Patron", "Cardioide y omnidireccional"],
+                ["Resolucion", "24 bit / 96 kHz"],
+                ["Conexion", "USB-C y XLR"],
+                ["Incluye", "Filtro antipop"]
+            ]
+        },
+        SeedProduct {
+            slug: "chrono-fit",
+            name: "Chrono Fit",
+            brand: "kestrel",
+            category: "wearables",
+            tagline: "Smartwatch con ECG y 14 dias de autonomia",
+            description: "Pantalla AMOLED siempre activa de 1,4 pulgadas, sensor optico de cuarta generacion y electrodo de acero para el ECG de 30 segundos. Reconoce siete deportes sin que le digas nada y aguanta dos semanas de uso normal.",
+            price_cents: 19900,
+            compare_at_cents: 24900,
+            rating: 47,
+            reviews: 1043,
+            badge: "Mas vendido",
+            featured: true,
+            colors: ["Negro", "Plata", "Oro rosa"],
+            sizes: ["40 mm", "44 mm"],
+            size_step_cents: 2000,
+            features: [
+                ["Pantalla", "AMOLED 1,4\" always-on"],
+                ["Autonomia", "14 dias"],
+                ["Salud", "ECG, SpO2, temperatura"],
+                ["Resistencia", "5 ATM"],
+                ["Deportes", "120 modos"]
+            ]
+        },
+        SeedProduct {
+            slug: "halo-band",
+            name: "Halo Band",
+            brand: "volt",
+            category: "wearables",
+            tagline: "Pulsera de sueno y recuperacion, 21 g",
+            description: "Sin pantalla y sin notificaciones: solo mide. Puntua tu sueno en cuatro fases, calcula la carga de entrenamiento y te dice cada manana cuanto puedes exigirte. La correa de silicona liquida no irrita al dormir.",
+            price_cents: 7900,
+            compare_at_cents: 0,
+            rating: 44,
+            reviews: 612,
+            badge: "Novedad",
+            featured: false,
+            colors: ["Negro", "Coral", "Verde salvia"],
+            sizes: ["S/M", "L/XL"],
+            size_step_cents: 0,
+            features: [
+                ["Autonomia", "9 dias"],
+                ["Sensores", "PPG, temperatura, acelerometro"],
+                ["Peso", "21 g"],
+                ["Resistencia", "5 ATM"]
+            ]
+        },
+        SeedProduct {
+            slug: "summit-gps",
+            name: "Summit GPS",
+            brand: "kestrel",
+            category: "wearables",
+            tagline: "Reloj de montana con cartografia offline",
+            description: "GPS multibanda que no pierde la senal en un barranco, mapas topograficos precargados de toda Europa y cristal de zafiro. En modo expedicion llega a 40 dias; con GPS continuo, a 60 horas.",
+            price_cents: 34900,
+            compare_at_cents: 39900,
+            rating: 49,
+            reviews: 388,
+            badge: "Oferta",
+            featured: true,
+            colors: ["Grafito", "Oliva", "Negro"],
+            sizes: ["47 mm"],
+            size_step_cents: 0,
+            features: [
+                ["GPS", "Multibanda L1 + L5"],
+                ["Mapas", "Topograficos offline"],
+                ["Autonomia", "40 dias / 60 h GPS"],
+                ["Cristal", "Zafiro"],
+                ["Norma", "MIL-STD-810H"]
+            ]
+        },
+        SeedProduct {
+            slug: "echo-ring",
+            name: "Echo Ring",
+            brand: "orbita",
+            category: "wearables",
+            tagline: "Anillo inteligente de titanio, 4 g",
+            description: "Tres sensores dentro de un aro de titanio de 2,4 mm de grosor. Mide sueno, variabilidad cardiaca y temperatura nocturna sin que te des cuenta de que lo llevas, y se carga en una base que cabe en el bolsillo.",
+            price_cents: 22900,
+            compare_at_cents: 0,
+            rating: 43,
+            reviews: 204,
+            badge: "Novedad",
+            featured: false,
+            colors: ["Plata", "Negro", "Oro rosa"],
+            sizes: ["Talla 8", "Talla 10", "Talla 12"],
+            size_step_cents: 0,
+            features: [
+                ["Material", "Titanio grado 5"],
+                ["Peso", "4 g"],
+                ["Autonomia", "7 dias"],
+                ["Medidas", "Sueno, HRV, temperatura"]
+            ]
+        },
+        SeedProduct {
+            slug: "atlas-14",
+            name: "Atlas 14",
+            brand: "fenix",
+            category: "computing",
+            tagline: "Portatil de 1,19 kg con 22 h de autonomia",
+            description: "Chasis unibody de magnesio, pantalla mate de 14 pulgadas a 120 Hz y refrigeracion pasiva: no tiene ventilador, asi que no hace ruido nunca. El teclado tiene 1,5 mm de recorrido y el trackpad es de cristal.",
+            price_cents: 129900,
+            compare_at_cents: 149900,
+            rating: 48,
+            reviews: 517,
+            badge: "Oferta",
+            featured: true,
+            colors: ["Plata", "Grafito"],
+            sizes: ["16 GB / 512 GB", "32 GB / 1 TB"],
+            size_step_cents: 30000,
+            features: [
+                ["Pantalla", "14\" 2.8K 120 Hz mate"],
+                ["Peso", "1,19 kg"],
+                ["Autonomia", "22 h"],
+                ["Refrigeracion", "Pasiva, sin ventilador"],
+                ["Puertos", "2x USB-C, HDMI, jack"]
+            ]
+        },
+        SeedProduct {
+            slug: "nimbus-75",
+            name: "Nimbus 75",
+            brand: "aurea",
+            category: "computing",
+            tagline: "Teclado mecanico 75% con junta de silicona",
+            description: "Montaje gasket sobre placa de FR4, tres capas de espuma y estabilizadores lubricados de fabrica: suena grave y no traquetea. Interruptores intercambiables en caliente e inalambrico por 2,4 GHz o Bluetooth.",
+            price_cents: 14900,
+            compare_at_cents: 0,
+            rating: 47,
+            reviews: 743,
+            badge: "",
+            featured: false,
+            colors: ["Negro", "Arena", "Lavanda"],
+            sizes: ["Lineal", "Tactil", "Clicky"],
+            size_step_cents: 0,
+            features: [
+                ["Formato", "75% con rueda"],
+                ["Montaje", "Gasket con junta de silicona"],
+                ["Conexion", "USB-C, 2,4 GHz, Bluetooth"],
+                ["Teclas", "PBT doble inyeccion"],
+                ["Autonomia", "120 h"]
+            ]
+        },
+        SeedProduct {
+            slug: "vertex-ergo",
+            name: "Vertex Ergo",
+            brand: "aurea",
+            category: "computing",
+            tagline: "Raton vertical de 57 grados y 8.000 dpi",
+            description: "La inclinacion de 57 grados deja el antebrazo en posicion neutra, que es donde deja de doler. Sensor optico de 8.000 dpi, seis botones programables y un peso de 78 g que no cansa en jornadas largas.",
+            price_cents: 6900,
+            compare_at_cents: 8900,
+            rating: 45,
+            reviews: 921,
+            badge: "Oferta",
+            featured: false,
+            colors: ["Negro", "Blanco"],
+            sizes: ["Mediano", "Grande"],
+            size_step_cents: 500,
+            features: [
+                ["Angulo", "57 grados"],
+                ["Sensor", "8.000 dpi"],
+                ["Botones", "6 programables"],
+                ["Autonomia", "70 dias"]
+            ]
+        },
+        SeedProduct {
+            slug: "orbit-27",
+            name: "Orbit 27",
+            brand: "lumen",
+            category: "computing",
+            tagline: "Monitor 4K de 27\" con 98% DCI-P3",
+            description: "Panel IPS Black con contraste 2000:1 y calibracion de fabrica con informe individual. Un solo cable USB-C lleva imagen, datos y 96 W de carga al portatil, y el brazo ergonomico llega a modo retrato.",
+            price_cents: 54900,
+            compare_at_cents: 64900,
+            rating: 48,
+            reviews: 356,
+            badge: "",
+            featured: true,
+            colors: ["Plata"],
+            sizes: ["Estandar", "Con brazo articulado"],
+            size_step_cents: 12000,
+            features: [
+                ["Panel", "IPS Black 4K 27\""],
+                ["Color", "98% DCI-P3, dE < 2"],
+                ["Refresco", "120 Hz"],
+                ["Conexion", "USB-C 96 W, 2x HDMI 2.1"]
+            ]
+        },
+        SeedProduct {
+            slug: "lumen-x100",
+            name: "Lumen X100",
+            brand: "lumen",
+            category: "photo",
+            tagline: "Compacta de sensor APS-C y objetivo fijo 23 mm",
+            description: "Sensor retroiluminado de 26 Mpx con un 23 mm f/2 disenado para el: sin zoom, sin excusas. Visor hibrido optico-electronico, dial de exposicion analogico y once simulaciones de pelicula que salen listas de la camara.",
+            price_cents: 89900,
+            compare_at_cents: 0,
+            rating: 49,
+            reviews: 274,
+            badge: "Edicion limitada",
+            featured: true,
+            colors: ["Plata", "Negro"],
+            sizes: ["Cuerpo", "Kit con empunadura"],
+            size_step_cents: 9900,
+            features: [
+                ["Sensor", "APS-C 26 Mpx BSI"],
+                ["Objetivo", "23 mm f/2 fijo"],
+                ["Visor", "Hibrido optico / electronico"],
+                ["Video", "6K 30p"],
+                ["Peso", "521 g"]
+            ]
+        },
+        SeedProduct {
+            slug: "prism-35",
+            name: "Prism 35mm",
+            brand: "lumen",
+            category: "photo",
+            tagline: "Objetivo luminoso f/1.4 con 11 palas",
+            description: "Once palas redondeadas para un desenfoque sin aristas, revestimiento nano que mata los reflejos a contraluz y enfoque por motor lineal silencioso. Tropicalizado, 402 g, anillo de apertura con clic desactivable para video.",
+            price_cents: 42900,
+            compare_at_cents: 47900,
+            rating: 47,
+            reviews: 189,
+            badge: "Oferta",
+            featured: false,
+            colors: ["Negro"],
+            sizes: ["Montura E", "Montura RF", "Montura X"],
+            size_step_cents: 0,
+            features: [
+                ["Apertura", "f/1.4 - f/16"],
+                ["Palas", "11 redondeadas"],
+                ["Enfoque", "Motor lineal STM"],
+                ["Peso", "402 g"],
+                ["Filtro", "62 mm"]
+            ]
+        },
+        SeedProduct {
+            slug: "drift-gimbal",
+            name: "Drift Gimbal",
+            brand: "marea",
+            category: "photo",
+            tagline: "Estabilizador de 3 ejes que cabe en un bolsillo",
+            description: "Plegado ocupa lo que una botella pequena y despliega en dos segundos. Aguanta hasta 1,2 kg, tiene seguimiento por vision incorporado y la bateria da para trece horas de rodaje.",
+            price_cents: 18900,
+            compare_at_cents: 0,
+            rating: 44,
+            reviews: 402,
+            badge: "",
+            featured: false,
+            colors: ["Grafito", "Blanco"],
+            sizes: ["Unica"],
+            size_step_cents: 0,
+            features: [
+                ["Ejes", "3 con bloqueo mecanico"],
+                ["Carga util", "1,2 kg"],
+                ["Autonomia", "13 h"],
+                ["Seguimiento", "Por vision, sin movil"]
+            ]
+        },
+        SeedProduct {
+            slug: "flare-panel",
+            name: "Flare Panel",
+            brand: "aurea",
+            category: "photo",
+            tagline: "Panel LED bicolor con difusor magnetico",
+            description: "De 2700 a 6500 K con un CRI de 97, atenuacion sin parpadeo desde el 0,1% y montura de zapata con rotula. El difusor y las viseras se ponen con imanes, sin tornillos que perder.",
+            price_cents: 12900,
+            compare_at_cents: 14900,
+            rating: 46,
+            reviews: 158,
+            badge: "",
+            featured: false,
+            colors: ["Negro", "Plata"],
+            sizes: ["Compacto", "Pro"],
+            size_step_cents: 6000,
+            features: [
+                ["Temperatura", "2700 - 6500 K"],
+                ["CRI", "97"],
+                ["Atenuacion", "0,1 - 100% sin parpadeo"],
+                ["Bateria", "Interna, 4 h al 50%"]
+            ]
+        },
+        SeedProduct {
+            slug: "termo-nest",
+            name: "Termo Nest",
+            brand: "volt",
+            category: "home",
+            tagline: "Termostato que aprende tu horario en una semana",
+            description: "Aro de aluminio mecanizado y pantalla circular que solo se enciende cuando te acercas. Aprende cuanto tarda tu casa en calentarse y arranca la caldera justo a tiempo; el informe mensual dice cuanto has ahorrado.",
+            price_cents: 17900,
+            compare_at_cents: 19900,
+            rating: 46,
+            reviews: 689,
+            badge: "",
+            featured: false,
+            colors: ["Plata", "Negro", "Arena"],
+            sizes: ["Unica"],
+            size_step_cents: 0,
+            features: [
+                ["Compatibilidad", "Caldera, suelo radiante, bomba de calor"],
+                ["Conexion", "Wi-Fi y Matter"],
+                ["Sensores", "Presencia, humedad, luz"],
+                ["Instalacion", "Sin obra, 20 min"]
+            ]
+        },
+        SeedProduct {
+            slug: "aura-lamp",
+            name: "Aura Lamp",
+            brand: "lumen",
+            category: "home",
+            tagline: "Lampara de mesa con luz de espectro completo",
+            description: "Una pantalla de alabastro sintetico reparte la luz sin sombras duras. Sigue tu ciclo circadiano durante el dia y a las nueve de la noche baja sola a 1900 K, que es la temperatura a la que el cuerpo entiende que toca dormir.",
+            price_cents: 6900,
+            compare_at_cents: 0,
+            rating: 45,
+            reviews: 512,
+            badge: "Novedad",
+            featured: true,
+            colors: ["Blanco", "Terracota", "Verde salvia"],
+            sizes: ["Sobremesa", "De pie"],
+            size_step_cents: 8000,
+            features: [
+                ["Espectro", "1900 - 6500 K, CRI 95"],
+                ["Control", "Tactil, app y Matter"],
+                ["Material", "Alabastro sintetico y roble"],
+                ["Consumo", "9 W maximo"]
+            ]
+        },
+        SeedProduct {
+            slug: "sentry-cam",
+            name: "Sentry Cam",
+            brand: "volt",
+            category: "home",
+            tagline: "Camara exterior con grabacion local cifrada",
+            description: "Sin cuotas y sin nube ajena: graba en una tarjeta interna cifrada con una clave que solo tiene tu movil. Vision nocturna en color, foco de 800 lumenes y bateria que aguanta seis meses por carga.",
+            price_cents: 11900,
+            compare_at_cents: 13900,
+            rating: 44,
+            reviews: 437,
+            badge: "Oferta",
+            featured: false,
+            colors: ["Blanco", "Negro"],
+            sizes: ["1 unidad", "Pack de 2", "Pack de 3"],
+            size_step_cents: 9900,
+            features: [
+                ["Resolucion", "2K HDR"],
+                ["Almacenamiento", "Local cifrado, sin cuota"],
+                ["Bateria", "6 meses"],
+                ["Resistencia", "IP66"],
+                ["Vision nocturna", "En color con foco 800 lm"]
+            ]
+        },
+        SeedProduct {
+            slug: "brew-master",
+            name: "Brew Master",
+            brand: "marea",
+            category: "home",
+            tagline: "Cafetera de filtro con control de temperatura al grado",
+            description: "Certificada por la SCA: mantiene el agua entre 92 y 96 grados durante toda la extraccion y moja el poso en tres fases. Molinillo conico de acero integrado con cuarenta puntos de molienda.",
+            price_cents: 24900,
+            compare_at_cents: 29900,
+            rating: 47,
+            reviews: 331,
+            badge: "Oferta",
+            featured: false,
+            colors: ["Acero", "Negro"],
+            sizes: ["1 L", "1,5 L"],
+            size_step_cents: 4000,
+            features: [
+                ["Temperatura", "92 - 96 grados controlados"],
+                ["Molinillo", "Conico de acero, 40 puntos"],
+                ["Extraccion", "Pre-infusion en 3 fases"],
+                ["Certificacion", "SCA Golden Cup"]
+            ]
+        },
+        SeedProduct {
+            slug: "flux-rope",
+            name: "Flux Rope",
+            brand: "volt",
+            category: "fitness",
+            tagline: "Comba inteligente que cuenta saltos sin fallar",
+            description: "Rodamientos de doble eje para que el cable no se enrede y un sensor en el mango que cuenta saltos, dobles y tiempo de vuelo. La app monta rutinas de intervalos de siete minutos.",
+            price_cents: 4900,
+            compare_at_cents: 0,
+            rating: 43,
+            reviews: 276,
+            badge: "",
+            featured: false,
+            colors: ["Negro", "Coral"],
+            sizes: ["Unica"],
+            size_step_cents: 0,
+            features: [
+                ["Sensor", "Cuenta saltos y dobles"],
+                ["Cable", "Acero recubierto, ajustable"],
+                ["Autonomia", "3 meses"],
+                ["Peso", "Mangos de 95 g"]
+            ]
+        },
+        SeedProduct {
+            slug: "terra-mat",
+            name: "Terra Mat",
+            brand: "marea",
+            category: "fitness",
+            tagline: "Esterilla de caucho natural con guias de alineacion",
+            description: "Seis milimetros de caucho natural con superficie de poliuretano que agarra incluso con las manos sudadas. Las guias grabadas ayudan a colocar pies y manos sin mirarse los pies.",
+            price_cents: 5900,
+            compare_at_cents: 0,
+            rating: 46,
+            reviews: 604,
+            badge: "",
+            featured: false,
+            colors: ["Verde salvia", "Terracota", "Grafito"],
+            sizes: ["183 cm", "200 cm"],
+            size_step_cents: 1000,
+            features: [
+                ["Material", "Caucho natural y poliuretano"],
+                ["Grosor", "6 mm"],
+                ["Agarre", "Alto en humedo"],
+                ["Peso", "2,4 kg"]
+            ]
+        },
+        SeedProduct {
+            slug: "kinetic-24",
+            name: "Kinetic 24",
+            brand: "kestrel",
+            category: "fitness",
+            tagline: "Mancuernas ajustables de 2 a 24 kg por dial",
+            description: "Un giro de dial cambia el peso en dos segundos, asi que las superseries dejan de ser un problema logistico. Los discos de acero van recubiertos de elastomero y el par ocupa lo que un par de zapatos.",
+            price_cents: 29900,
+            compare_at_cents: 34900,
+            rating: 48,
+            reviews: 418,
+            badge: "Oferta",
+            featured: false,
+            colors: ["Negro", "Grafito"],
+            sizes: ["Par", "Par con soporte"],
+            size_step_cents: 7900,
+            features: [
+                ["Rango", "2 - 24 kg por mancuerna"],
+                ["Ajuste", "Dial, 15 posiciones"],
+                ["Recubrimiento", "Elastomero antirruido"],
+                ["Garantia", "5 anos"]
+            ]
+        },
+        SeedProduct {
+            slug: "vector-bike",
+            name: "Vector Bike",
+            brand: "fenix",
+            category: "fitness",
+            tagline: "Bicicleta estatica silenciosa con freno magnetico",
+            description: "Transmision por correa dentada y volante de 18 kg: pedaleas a 300 vatios y en la habitacion de al lado no se enteran. Manillar y sillin con cuatro ajustes cada uno, y medicion de potencia real, no estimada.",
+            price_cents: 89900,
+            compare_at_cents: 99900,
+            rating: 47,
+            reviews: 212,
+            badge: "Oferta",
+            featured: true,
+            colors: ["Negro", "Blanco"],
+            sizes: ["Estandar", "Con pantalla 22\""],
+            size_step_cents: 40000,
+            features: [
+                ["Volante", "18 kg con freno magnetico"],
+                ["Transmision", "Correa dentada, sin ruido"],
+                ["Potencia", "Medicion real +-2%"],
+                ["Ajustes", "Sillin y manillar en 4 ejes"],
+                ["Peso maximo", "150 kg"]
+            ]
+        }
+    ]
+}
+
+// Spread the stock so most variants are available, a few are running low and roughly
+// one in thirty is sold out — enough to exercise the "Agotado" states without making
+// the demo catalog look broken.
+fn deterministic_stock(product_index: int, variant_index: int) -> int {
+    let spread = (product_index * 7 + variant_index * 13 + 11) % 29;
+    if (spread == 0) {
+        return 0;
+    }
+    spread + 2
+}
+
+fn flag(on: bool) -> string {
+    if (on) { "1" } else { "0" }
+}
+
+/// Inserts the whole demo catalog. Assumes the tables exist and are empty.
+pub fn populate(conn: sqlite.Conn) -> Result<int, string> {
+    let none: [string] = [];
+    let _ = sqlite.exec(conn, "BEGIN", none)?;
+
+    var order = 0;
+    var category_ids: Map<string, int> = Map.new();
+    for row in categories() {
+        let _ = sqlite.exec(
+            conn,
+            "INSERT INTO categories (slug, name, tagline, icon, sort_order) VALUES (?1, ?2, ?3, ?4, ?5)",
+            [row[0], row[1], row[2], row[3], to_string(order)]
+        )?;
+        category_ids.insert(row[0], sqlite.last_insert_rowid(conn)?);
+        order = order + 1;
+    }
+
+    var brand_ids: Map<string, int> = Map.new();
+    for row in brands() {
+        let _ = sqlite.exec(
+            conn,
+            "INSERT INTO brands (slug, name, tagline) VALUES (?1, ?2, ?3)",
+            [row[0], row[1], row[2]]
+        )?;
+        brand_ids.insert(row[0], sqlite.last_insert_rowid(conn)?);
+    }
+
+    let now = time.now();
+    var index = 0;
+    // The catalog literal is built ONCE: rebuilding it inside the loop allocated the
+    // whole array on every iteration for nothing.
+    let items = catalog();
+    let total = items.len();
+    for item in items {
+        let category_id = match (category_ids.get(item.category)) {
+            Option.Some(id) => id,
+            Option.None => {
+                return Result.Err("seed: unknown category '" + item.category + "'");
+            },
+        };
+        let brand_id = match (brand_ids.get(item.brand)) {
+            Option.Some(id) => id,
+            Option.None => {
+                return Result.Err("seed: unknown brand '" + item.brand + "'");
+            },
+        };
+        // Older products first, so "newest" sorting has something to order by.
+        let created_at = now - (total - index) * 86400000;
+        let _ = sqlite.exec(
+            conn,
+            `INSERT INTO products (slug, name, tagline, description, category_id, brand_id,
+                 price_cents, compare_at_cents, rating, reviews, badge, featured, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)`,
+            [
+                item.slug,
+                item.name,
+                item.tagline,
+                item.description,
+                to_string(category_id),
+                to_string(brand_id),
+                to_string(item.price_cents),
+                to_string(item.compare_at_cents),
+                to_string(item.rating),
+                to_string(item.reviews),
+                item.badge,
+                flag(item.featured),
+                to_string(created_at)
+            ]
+        )?;
+        let product_id = sqlite.last_insert_rowid(conn)?;
+
+        var variant_index = 0;
+        for color in item.colors {
+            var size_index = 0;
+            for size in item.sizes {
+                let sku = item.slug
+                    .to_upper()
+                    .replace("-", "") + "-" + to_string(variant_index + 1);
+                let _ = sqlite.exec(
+                    conn,
+                    `INSERT INTO variants (product_id, sku, color, color_hex, size, price_cents, stock)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)`,
+                    [
+                        to_string(product_id),
+                        sku,
+                        color,
+                        palette.color_hex(color),
+                        size,
+                        to_string(item.price_cents + size_index * item.size_step_cents),
+                        to_string(deterministic_stock(index, variant_index))
+                    ]
+                )?;
+                variant_index = variant_index + 1;
+                size_index = size_index + 1;
+            }
+        }
+
+        var position = 0;
+        for feature in item.features {
+            let _ = sqlite.exec(
+                conn,
+                "INSERT INTO features (product_id, name, value, position) VALUES (?1, ?2, ?3, ?4)",
+                [to_string(product_id), feature[0], feature[1], to_string(position)]
+            )?;
+            position = position + 1;
+        }
+        index = index + 1;
+    }
+
+    let _ = sqlite.exec(conn, "COMMIT", none)?;
+    Result.Ok(index)
+}

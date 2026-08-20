@@ -1,9 +1,9 @@
 {% params shell: view.Shell, hero: models.Product, featured: [models.Product], deals: [models.Product], fresh: [models.Product], catalog_size: int %}
 {% extends views/layout %}
-{% import src/view %}
-{% import src/models %}
-{% import src/money %}
-{% import src/imagery %}
+{% import src/ui/view %}
+{% import src/domain/models %}
+{% import src/domain/money %}
+{% import src/ui/imagery %}
 {% block body %}
 
     <section class="hero">

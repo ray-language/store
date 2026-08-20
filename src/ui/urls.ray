@@ -2,8 +2,8 @@
 // without a line of JavaScript: a facet is a link that toggles one value and keeps the
 // rest of the state intact.
 import std/url;
-import src/markup;
-from src/catalog import Query;
+import src/domain/markup;
+from src/store/catalog import Query;
 
 // Arrays have reference semantics, so a copy has to clone its lists explicitly.
 fn cloned(values: [string]) -> [string] {
@@ -15,7 +15,21 @@ fn cloned(values: [string]) -> [string] {
 }
 
 fn copy_of(q: Query) -> Query {
-    Query { search: q.search, category: q.category, brands: cloned(q.brands), colors: cloned(q.colors), sizes: cloned(q.sizes), min_cents: q.min_cents, max_cents: q.max_cents, min_rating: q.min_rating, in_stock: q.in_stock, on_sale: q.on_sale, sort: q.sort, page: q.page, per_page: q.per_page }
+    Query {
+        search: q.search,
+        category: q.category,
+        brands: cloned(q.brands),
+        colors: cloned(q.colors),
+        sizes: cloned(q.sizes),
+        min_cents: q.min_cents,
+        max_cents: q.max_cents,
+        min_rating: q.min_rating,
+        in_stock: q.in_stock,
+        on_sale: q.on_sale,
+        sort: q.sort,
+        page: q.page,
+        per_page: q.per_page
+    }
 }
 
 fn toggled(values: [string], value: string) -> [string] {

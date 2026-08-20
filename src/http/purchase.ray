@@ -1,0 +1,129 @@
+// The buying flow: cart, its mutations, checkout and the order confirmation.
+//
+// The mutations never touch the database — they rewrite the cookie and redirect, and the
+// next GET re-prices the whole basket against the catalog. That is what keeps a tampered
+// cookie from being able to change a price.
+from web/framework import Ctx, Res, param, form_field;
+import db/sqlite;
+import src/store/catalog;
+import src/store/cart;
+import src/store/orders;
+import src/http/request;
+import src/http/shell;
+import src/http/respond;
+from src/http/respond import Reply;
+import views/cart as cart_view;
+import views/checkout as checkout_view;
+import views/confirmation as confirmation_view;
+
+pub fn basket(c: Ctx, r: Res) {
+    respond.with_db(c, r, fn(conn: sqlite.Conn) -> Result<Reply, string> {
+        let resolved = cart.resolve(conn, request.cart_of(c))?;
+        let frame = shell.of(
+            conn,
+            c,
+            "Tu carrito",
+            "Revisa tu pedido antes de pagar.",
+            "/carrito"
+        )?;
+        Result.Ok(
+            Reply.Html(
+                cart_view.render(frame, resolved, respond.or_empty(catalog.featured(conn, 4)))
+            )
+        )
+    });
+}
+
+pub fn add(c: Ctx, r: Res) {
+    let variant = request.int_or(c.form_field("variant"), 0);
+    var quantity = request.int_or(c.form_field("quantity"), 1);
+    if (quantity < 1) {
+        quantity = 1;
+    }
+    respond.store_cart(r, cart.add(request.cart_of(c), variant, quantity));
+    // Back where the shopper was, with the flash that confirms the add.
+    let target = request.back_to(c, "/carrito");
+    let joiner = if (target.contains("?")) { "&" } else { "?" };
+    respond.plain(c, r, Reply.Redirect(target + joiner + "anadido=1"));
+}
+
+pub fn update(c: Ctx, r: Res) {
+    let variant = request.int_or(c.form_field("variant"), 0);
+    let quantity = request.int_or(c.form_field("quantity"), 0);
+    respond.store_cart(r, cart.set_quantity(request.cart_of(c), variant, quantity));
+    respond.plain(c, r, Reply.Redirect("/carrito"));
+}
+
+pub fn remove(c: Ctx, r: Res) {
+    respond.store_cart(
+        r,
+        cart.remove(request.cart_of(c), request.int_or(c.form_field("variant"), 0))
+    );
+    respond.plain(c, r, Reply.Redirect("/carrito"));
+}
+
+pub fn checkout(c: Ctx, r: Res) {
+    respond.with_db(c, r, fn(conn: sqlite.Conn) -> Result<Reply, string> {
+        let resolved = cart.resolve(conn, request.cart_of(c))?;
+        if (resolved.lines.len() == 0) {
+            return Result.Ok(Reply.Redirect("/carrito"));
+        }
+        let frame = shell.of(conn, c, "Finalizar compra", "Ultimo paso.", "/checkout")?;
+        Result.Ok(Reply.Html(checkout_view.render(frame, resolved, "", "", "", "")))
+    });
+}
+
+pub fn place_order(c: Ctx, r: Res) {
+    respond.with_db(c, r, fn(conn: sqlite.Conn) -> Result<Reply, string> {
+        let customer = c.form_field("name");
+        let email = c.form_field("email");
+        let address = c.form_field("address");
+        let resolved = cart.resolve(conn, request.cart_of(c))?;
+        if (resolved.lines.len() == 0) {
+            return Result.Ok(Reply.Redirect("/carrito"));
+        }
+        match (orders.place(conn, resolved, customer, email, address)) {
+            Result.Ok(placed) => {
+                respond.store_cart(r, "");
+                Result.Ok(Reply.Redirect("/pedido/" + placed.reference))
+            },
+            // A rejected checkout is not a server error: the form comes back with what
+            // the customer typed and the reason, under a 422.
+            Result.Err(problem) => {
+                let frame = shell.of(conn, c, "Finalizar compra", "Ultimo paso.", "/checkout")?;
+                Result.Ok(
+                    Reply.HtmlCoded(
+                        422,
+                        checkout_view.render(frame, resolved, problem, customer, email, address)
+                    )
+                )
+            },
+        }
+    });
+}
+
+pub fn confirmation(c: Ctx, r: Res) {
+    respond.with_db(c, r, fn(conn: sqlite.Conn) -> Result<Reply, string> {
+        match (orders.by_reference(conn, c.param("reference"))?) {
+            Option.None => Result.Ok(Reply.Missing),
+            Option.Some(placed) => {
+                let frame = shell.of(
+                    conn,
+                    c,
+                    "Pedido " + placed.reference,
+                    "Gracias por tu compra.",
+                    "/pedido"
+                )?;
+                Result.Ok(
+                    Reply.Html(
+                        confirmation_view.render(
+                            frame,
+                            placed,
+                            respond.or_empty(catalog.newest(conn, 4))
+                        )
+                    )
+                )
+            },
+        }
+    });
+}

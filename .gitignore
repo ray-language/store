@@ -1,5 +1,7 @@
 # raylang
 .ray-deps/
+/nova
+/store
 
 # SQLite: the database is generated (and re-seeded) on first run
 data/*.db
@@ -10,7 +12,6 @@ data/*.db-shm
 web/node_modules/
 web/dist/
 web/.astro/
-web/package-lock.json
 npm-debug.log*
 
 .DS_Store

@@ -1,9 +1,9 @@
 {% params shell: view.Shell, placed: orders.Placed, picks: [models.Product] %}
 {% extends views/layout %}
-{% import src/view %}
-{% import src/models %}
-{% import src/orders %}
-{% import src/money %}
+{% import src/ui/view %}
+{% import src/domain/models %}
+{% import src/store/orders %}
+{% import src/domain/money %}
 {% block body %}
 
     <div class="wrap" style="padding-block: 56px">
