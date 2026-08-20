@@ -71,28 +71,7 @@ pub struct Product {
 
 impl ToJson for Product {
     fn to_json(self) -> string {
-        render(obj()
-            .field("id", self.id)
-            .field("slug", self.slug)
-            .field("name", self.name)
-            .field("tagline", self.tagline)
-            .field("description", self.description)
-            .field("categorySlug", self.category_slug)
-            .field("categoryName", self.category_name)
-            .field("brandSlug", self.brand_slug)
-            .field("brandName", self.brand_name)
-            .field("priceCents", self.price_cents)
-            .field("compareAtCents", self.compare_at_cents)
-            .field("rating", self.rating)
-            .field("reviews", self.reviews)
-            .field("badge", self.badge)
-            .field("featured", self.featured)
-            .field("stock", self.stock)
-            .field("image", "/img/product/" + self.slug + ".svg")
-            .field("colors", list(self.colors))
-            .field("sizes", list(self.sizes))
-            .field("variants", list(self.variants))
-            .field("features", list(self.features)))
+        render(obj().field("id", self.id).field("slug", self.slug).field("name", self.name).field("tagline", self.tagline).field("description", self.description).field("categorySlug", self.category_slug).field("categoryName", self.category_name).field("brandSlug", self.brand_slug).field("brandName", self.brand_name).field("priceCents", self.price_cents).field("compareAtCents", self.compare_at_cents).field("rating", self.rating).field("reviews", self.reviews).field("badge", self.badge).field("featured", self.featured).field("stock", self.stock).field("image", "/img/product/" + self.slug + ".svg").field("colors", list(self.colors)).field("sizes", list(self.sizes)).field("variants", list(self.variants)).field("features", list(self.features)))
     }
 }
 
@@ -111,18 +90,7 @@ pub struct CartLine {
 
 impl ToJson for CartLine {
     fn to_json(self) -> string {
-        render(obj()
-            .field("variantId", self.variant_id)
-            .field("productSlug", self.product_slug)
-            .field("productName", self.product_name)
-            .field("color", self.color)
-            .field("colorHex", self.color_hex)
-            .field("size", self.size)
-            .field("unitCents", self.unit_cents)
-            .field("quantity", self.quantity)
-            .field("stock", self.stock)
-            .field("image", "/img/product/" + self.product_slug + ".svg")
-            .field("lineCents", self.unit_cents * self.quantity))
+        render(obj().field("variantId", self.variant_id).field("productSlug", self.product_slug).field("productName", self.product_name).field("color", self.color).field("colorHex", self.color_hex).field("size", self.size).field("unitCents", self.unit_cents).field("quantity", self.quantity).field("stock", self.stock).field("image", "/img/product/" + self.product_slug + ".svg").field("lineCents", self.unit_cents * self.quantity))
     }
 }
 
@@ -137,12 +105,7 @@ pub struct Cart {
 
 impl ToJson for Cart {
     fn to_json(self) -> string {
-        render(obj()
-            .field("lines", list(self.lines))
-            .field("units", self.units)
-            .field("subtotalCents", self.subtotal_cents)
-            .field("shippingCents", self.shipping_cents)
-            .field("totalCents", self.total_cents))
+        render(obj().field("lines", list(self.lines)).field("units", self.units).field("subtotalCents", self.subtotal_cents).field("shippingCents", self.shipping_cents).field("totalCents", self.total_cents))
     }
 }
 

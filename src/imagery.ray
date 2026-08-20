@@ -1,7 +1,6 @@
 // Product artwork generated on the fly as SVG. Keeping the imagery in code (instead of
 // binary assets or a remote CDN) makes the whole store self-contained: every product
 // gets a deterministic, unique-looking picture derived from its slug.
-
 /// Stable small hash of a slug — same input, same artwork, forever.
 fn hash_of(slug: string) -> int {
     var h = 17;
@@ -16,8 +15,7 @@ pub fn hue_of(slug: string) -> int {
 }
 
 fn hsl(hue: int, saturation: int, lightness: int) -> string {
-    "hsl(" + to_string(((hue % 360) + 360) % 360) + ", " + to_string(saturation) + "%, "
-        + to_string(lightness) + "%)"
+    "hsl(" + to_string((hue % 360 + 360) % 360) + ", " + to_string(saturation) + "%, " + to_string(lightness) + "%)"
 }
 
 // A line-art glyph per category, drawn inside a 0..100 box.
@@ -62,7 +60,7 @@ fn ident(slug: string) -> string {
     var out = "";
     for c in slug.chars() {
         let code = char_code(c);
-        let ok = (code >= 97 && code <= 122) || (code >= 48 && code <= 57);
+        let ok = code >= 97 && code <= 122 || code >= 48 && code <= 57;
         out = out + if (ok) { to_string(c) } else { "-" };
     }
     out

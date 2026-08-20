@@ -3,44 +3,58 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ shell.title }} · Nova</title>
-    <meta name="description" content="{{ shell.description }}">
-    <link rel="stylesheet" href="/assets/app.css">
-    <link rel="icon" href="/img/favicon.svg" type="image/svg+xml">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ shell.title }} · Nova</title>
+<meta name="description" content="{{ shell.description }}">
+<link rel="stylesheet" href="/assets/app.css">
+<link rel="icon" href="/img/favicon.svg" type="image/svg+xml">
 </head>
 <body>
 <div class="topbar">
-    <div class="wrap">
-        <span><b>Envio gratis</b> a partir de 60 €</span>
-        <span>Devoluciones en 30 dias</span>
-        <span>2 anos de garantia</span>
-    </div>
+<div class="wrap">
+<span><b>Envio gratis</b> a partir de 60 €</span>
+<span>Devoluciones en 30 dias</span>
+<span>2 anos de garantia</span>
+</div>
 </div>
 
 <header class="header">
-    <div class="wrap header-main">
-        <a class="brand" href="/"><span class="brand-mark">N</span> Nova</a>
-        <form class="header-search" action="/catalogo" method="get" role="search">
-            <input type="search" name="q" value="{{ shell.search }}" placeholder="Buscar productos" aria-label="Buscar">
-            <button type="submit">Buscar</button>
-        </form>
-        <a class="cart-link" href="/carrito">
-            Carrito
-            {% if shell.cart_units > 0 %}<span class="cart-count">{{ shell.cart_units }}</span>{% endif %}
-        </a>
-    </div>
-    <div class="navbar">
-        <nav class="wrap nav">
-            <a href="/catalogo" class="{% if shell.path == "/catalogo" %}on{% endif %}">Todo el catalogo</a>
-            {% for category in shell.categories %}
-            <a href="/catalogo?categoria={{ category.slug }}"
-               class="{% if shell.path == "/c/" + category.slug %}on{% endif %}">{{ category.name }}</a>
-            {% endfor %}
-            <a href="/ofertas" class="deal {% if shell.path == "/ofertas" %}on{% endif %}">Ofertas</a>
-        </nav>
-    </div>
+<div class="wrap header-main">
+<a class="brand" href="/"><span class="brand-mark">N</span> Nova</a>
+<form class="header-search" action="/catalogo" method="get" role="search">
+<input type="search" name="q" value="{{ shell.search }}" placeholder="Buscar productos" aria-label="Buscar">
+<button type="submit">Buscar</button>
+</form>
+<a class="cart-link" href="/carrito">
+Carrito
+{% if shell.cart_units > 0 %}
+    <span class="cart-count">{{ shell.cart_units }}</span>
+{% endif %}
+</a>
+</div>
+<div class="navbar">
+<nav class="wrap nav">
+<a href="/catalogo" class="
+{% if shell.path == "/catalogo" %}
+    on
+{% endif %}
+">Todo el catalogo</a>
+{% for category in shell.categories %}
+    <a href="/catalogo?categoria={{ category.slug }}"
+    class="
+    {% if shell.path == "/c/" + category.slug %}
+        on
+    {% endif %}
+    ">{{ category.name }}</a>
+{% endfor %}
+<a href="/ofertas" class="deal
+{% if shell.path == "/ofertas" %}
+    on
+{% endif %}
+">Ofertas</a>
+</nav>
+</div>
 </header>
 
 <main>
@@ -49,40 +63,40 @@
 </main>
 
 <footer class="footer">
-    <div class="wrap">
-        <div class="cols">
-            <div>
-                <a class="brand" href="/"><span class="brand-mark">N</span> Nova</a>
-                <p class="small" style="margin-top:12px;max-width:34ch">
-                    Tecnologia elegida una a una. Enviamos desde Madrid en 24 h y probamos cada
-                    unidad antes de que salga del almacen.
-                </p>
-            </div>
-            <div>
-                <h4>Tienda</h4>
-                {% for category in shell.categories %}
-                <a href="/catalogo?categoria={{ category.slug }}">{{ category.name }}</a>
-                {% endfor %}
-            </div>
-            <div>
-                <h4>Ayuda</h4>
-                <a href="/catalogo">Estado del pedido</a>
-                <a href="/catalogo">Envios y devoluciones</a>
-                <a href="/catalogo">Garantia</a>
-                <a href="/catalogo">Contacto</a>
-            </div>
-            <div>
-                <h4>Desarrollo</h4>
-                <a href="/api/products">API de productos</a>
-                <a href="/api/facets">API de filtros</a>
-                <a href="/salud">Estado del servicio</a>
-            </div>
-        </div>
-        <div class="fine">
-            <span>© 2026 Nova. Servido por raylang.</span>
-            <span>Precios con IVA incluido.</span>
-        </div>
-    </div>
+<div class="wrap">
+<div class="cols">
+<div>
+<a class="brand" href="/"><span class="brand-mark">N</span> Nova</a>
+<p class="small" style="margin-top:12px;max-width:34ch">
+Tecnologia elegida una a una. Enviamos desde Madrid en 24 h y probamos cada
+unidad antes de que salga del almacen.
+</p>
+</div>
+<div>
+<h4>Tienda</h4>
+{% for category in shell.categories %}
+    <a href="/catalogo?categoria={{ category.slug }}">{{ category.name }}</a>
+{% endfor %}
+</div>
+<div>
+<h4>Ayuda</h4>
+<a href="/catalogo">Estado del pedido</a>
+<a href="/catalogo">Envios y devoluciones</a>
+<a href="/catalogo">Garantia</a>
+<a href="/catalogo">Contacto</a>
+</div>
+<div>
+<h4>Desarrollo</h4>
+<a href="/api/products">API de productos</a>
+<a href="/api/facets">API de filtros</a>
+<a href="/salud">Estado del servicio</a>
+</div>
+</div>
+<div class="fine">
+<span>© 2026 Nova. Servido por raylang.</span>
+<span>Precios con IVA incluido.</span>
+</div>
+</div>
 </footer>
 </body>
 </html>

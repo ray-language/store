@@ -1,0 +1,93 @@
+---
+import Base from '../../layouts/Base.astro';
+import BuyBox from '../../components/BuyBox';
+import ProductCard from '../../components/ProductCard';
+import Stars from '../../components/Stars';
+import { fetchAtBuild } from '../../lib/api';
+import type { Product, ProductPage } from '../../lib/api';
+
+// One static page per product, generated from the raylang API at build time.
+export async function getStaticPaths() {
+  const { items } = await fetchAtBuild<ProductPage>('/api/products?porPagina=48');
+  return items.map((product) => ({ params: { slug: product.slug }, props: { product } }));
+}
+
+const { product } = Astro.props as { product: Product };
+const related = await fetchAtBuild<ProductPage>(
+  `/api/products?categoria=${product.categorySlug}&porPagina=5&orden=rating`
+);
+const others = related.items.filter((item) => item.slug !== product.slug).slice(0, 4);
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+---
+<Base title={product.name} description={product.tagline}>
+  <div class="mx-auto max-w-[1200px] px-5">
+    <nav class="flex flex-wrap items-center gap-2 py-5 text-sm text-ink-muted">
+      <a href={`${base}/`} class="hover:text-ink">Inicio</a><span>/</span>
+      <a href={`${base}/catalogo/?categoria=${product.categorySlug}`} class="hover:text-ink">{product.categoryName}</a><span>/</span>
+      <span>{product.name}</span>
+    </nav>
+
+    <div class="grid items-start gap-12 pb-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,.95fr)]">
+      <div class="lg:sticky lg:top-24">
+        <div class="overflow-hidden rounded-[24px] shadow-xl">
+          <img src={product.image} alt={product.name} width="900" height="900" class="aspect-square w-full object-cover" />
+        </div>
+        <div class="mt-3 grid grid-cols-4 gap-2.5">
+          {product.colors.map((color) => (
+            <div class="relative overflow-hidden rounded-xl border-2 border-line">
+              <img src={product.image} alt={`${product.name} en ${color}`} class="aspect-square w-full object-cover" />
+              <span class="absolute bottom-1.5 right-1.5 h-3.5 w-3.5 rounded-full border-2 border-white shadow"
+                    style={`background: ${product.variants.find((v) => v.color === color)?.colorHex}`}></span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <span class="text-[11px] font-semibold uppercase tracking-[.1em] text-ink-muted">{product.brandName}</span>
+        <h1 class="mt-1.5 text-[clamp(1.7rem,3vw,2.4rem)] font-bold tracking-tight">{product.name}</h1>
+        <p class="mt-2.5 text-ink-muted">{product.tagline}</p>
+        <div class="mt-3"><Stars rating={product.rating} reviews={product.reviews} /></div>
+        <div class="mt-5">
+          <BuyBox client:load product={product} cartHref="/carrito" />
+        </div>
+        <div class="mt-7 grid gap-2.5 border-t border-line pt-5 text-sm text-ink-soft">
+          <p><b>Envio en 24 h</b> si lo pides antes de las 17:00 (peninsula).</p>
+          <p><b>30 dias</b> para devolverlo, sin gastos y sin explicaciones.</p>
+          <p><b>2 anos de garantia</b> gestionada por nosotros.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid gap-5 pb-6 lg:grid-cols-2">
+      <div class="rounded-[14px] border border-line bg-white p-6">
+        <h2 class="text-xl font-semibold tracking-tight">Sobre este producto</h2>
+        <p class="mt-3 leading-relaxed text-ink-muted">{product.description}</p>
+      </div>
+      <div class="rounded-[14px] border border-line bg-white p-6">
+        <h2 class="text-xl font-semibold tracking-tight">Ficha tecnica</h2>
+        <table class="mt-3 w-full border-collapse">
+          <tbody>
+          {product.features.map((feature) => (
+            <tr class="border-b border-line">
+              <td class="w-[42%] py-3 align-top text-sm text-ink-muted">{feature.name}</td>
+              <td class="py-3 align-top text-sm">{feature.value}</td>
+            </tr>
+          ))}
+          <tr class="border-b border-line"><td class="py-3 text-sm text-ink-muted">Marca</td><td class="py-3 text-sm">{product.brandName}</td></tr>
+          <tr><td class="py-3 text-sm text-ink-muted">Referencias disponibles</td><td class="py-3 text-sm">{product.variants.length} combinaciones</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {others.length > 0 && (
+      <section class="pb-14 pt-6">
+        <h2 class="mb-6 text-[clamp(1.5rem,2.6vw,2.1rem)] font-semibold tracking-tight">Mas de {product.categoryName}</h2>
+        <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          {others.map((item) => <ProductCard product={item} base={base} />)}
+        </div>
+      </section>
+    )}
+  </div>
+</Base>

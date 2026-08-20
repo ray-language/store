@@ -6,143 +6,143 @@
 {% import src/imagery %}
 {% block body %}
 
-<section class="hero">
+    <section class="hero">
     <div class="wrap">
-        <div class="stack">
-            <span class="eyebrow">Semana Nova · hasta -25%</span>
-            <h1>La tecnologia que de verdad usas, elegida a mano.</h1>
-            <p class="lede">
-                {{ catalog_size }} productos seleccionados uno a uno, con ficha tecnica honesta y
-                stock real. Si lo ves disponible, sale hoy mismo.
-            </p>
-            <div class="hero-actions">
-                <a class="btn btn-primary btn-lg" href="/catalogo">Comprar ahora</a>
-                <a class="btn btn-ghost btn-lg" href="/ofertas" style="background: rgba(255,255,255,.1); color:#fff; border-color: rgba(255,255,255,.28)">Ver ofertas</a>
-            </div>
-            <div class="hero-proof">
-                <div><b>24 h</b><span>Envio desde Madrid</span></div>
-                <div><b>30 dias</b><span>Para devolverlo</span></div>
-                <div><b>4,7/5</b><span>9.400 valoraciones</span></div>
-            </div>
-        </div>
-        <a class="hero-card" href="/producto/{{ hero.slug }}">
-            <div class="shot">{{& imagery.product_svg(hero.slug, hero.category_slug) }}</div>
-            <div class="hero-card-foot">
-                <div>
-                    <div class="eyebrow" style="margin-bottom:8px">Producto de la semana</div>
-                    <div class="name">{{ hero.name }}</div>
-                    <div class="small" style="color:#a9b9c7">{{ hero.tagline }}</div>
-                </div>
-                <div style="text-align:right">
-                    <div class="price">{{ money.eur(hero.price_cents) }}</div>
-                    {% if hero.compare_at_cents > hero.price_cents %}
-                    <div class="was">{{ money.eur(hero.compare_at_cents) }}</div>
-                    {% endif %}
-                </div>
-            </div>
+    <div class="stack">
+    <span class="eyebrow">Semana Nova · hasta -25%</span>
+    <h1>La tecnologia que de verdad usas, elegida a mano.</h1>
+    <p class="lede">
+    {{ catalog_size }} productos seleccionados uno a uno, con ficha tecnica honesta y
+    stock real. Si lo ves disponible, sale hoy mismo.
+    </p>
+    <div class="hero-actions">
+    <a class="btn btn-primary btn-lg" href="/catalogo">Comprar ahora</a>
+    <a class="btn btn-ghost btn-lg" href="/ofertas" style="background: rgba(255,255,255,.1); color:#fff; border-color: rgba(255,255,255,.28)">Ver ofertas</a>
+    </div>
+    <div class="hero-proof">
+    <div><b>24 h</b><span>Envio desde Madrid</span></div>
+    <div><b>30 dias</b><span>Para devolverlo</span></div>
+    <div><b>4,7/5</b><span>9.400 valoraciones</span></div>
+    </div>
+    </div>
+    <a class="hero-card" href="/producto/{{ hero.slug }}">
+    <div class="shot">{{& imagery.product_svg(hero.slug, hero.category_slug) }}</div>
+    <div class="hero-card-foot">
+    <div>
+    <div class="eyebrow" style="margin-bottom:8px">Producto de la semana</div>
+    <div class="name">{{ hero.name }}</div>
+    <div class="small" style="color:#a9b9c7">{{ hero.tagline }}</div>
+    </div>
+    <div style="text-align:right">
+    <div class="price">{{ money.eur(hero.price_cents) }}</div>
+    {% if hero.compare_at_cents > hero.price_cents %}
+        <div class="was">{{ money.eur(hero.compare_at_cents) }}</div>
+    {% endif %}
+    </div>
+    </div>
+    </a>
+    </div>
+    </section>
+
+    <section class="section">
+    <div class="wrap">
+    <div class="values">
+    <div class="value"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h11v9H3z"/><path d="M14 10h4l3 3v3h-7z"/><circle cx="7" cy="18.5" r="1.8"/><circle cx="17.5" cy="18.5" r="1.8"/></svg></span><b>Envio gratis desde 60 €</b><span>Y siempre en 24-48 h peninsula.</span></div>
+    <div class="value"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5 4 10l5 5"/><path d="M4 10h10a6 6 0 0 1 0 12h-3"/></svg></span><b>30 dias para pensarlo</b><span>Devolucion sin preguntas ni gastos.</span></div>
+    <div class="value"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 5 6v6c0 4.4 3 7.7 7 9 4-1.3 7-4.6 7-9V6z"/><path d="m9 12 2 2 4-4"/></svg></span><b>2 anos de garantia</b><span>Gestionada por nosotros, no por el fabricante.</span></div>
+    <div class="value"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg></span><b>Probado antes de enviar</b><span>Cada unidad pasa revision en almacen.</span></div>
+    </div>
+    </div>
+    </section>
+
+    <section class="section" style="padding-top:0">
+    <div class="wrap">
+    <div class="section-head">
+    <div>
+    <h2>Compra por categoria</h2>
+    <p>Seis familias, sin relleno: solo lo que recomendariamos a un amigo.</p>
+    </div>
+    <a class="link-more" href="/catalogo">Ver el catalogo completo →</a>
+    </div>
+    <div class="tiles">
+    {% for category in shell.categories %}
+        <a class="tile" href="/catalogo?categoria={{ category.slug }}">
+        <span class="bg">{{& imagery.category_svg(category.slug) }}</span>
+        <span class="tile-count">{{ category.product_count }} productos</span>
+        <span class="tile-text">
+        <h3>{{ category.name }}</h3>
+        <p>{{ category.tagline }}</p>
+        </span>
         </a>
+    {% endfor %}
     </div>
-</section>
+    </div>
+    </section>
 
-<section class="section">
+    <section class="section" style="padding-top:0">
     <div class="wrap">
-        <div class="values">
-            <div class="value"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h11v9H3z"/><path d="M14 10h4l3 3v3h-7z"/><circle cx="7" cy="18.5" r="1.8"/><circle cx="17.5" cy="18.5" r="1.8"/></svg></span><b>Envio gratis desde 60 €</b><span>Y siempre en 24-48 h peninsula.</span></div>
-            <div class="value"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5 4 10l5 5"/><path d="M4 10h10a6 6 0 0 1 0 12h-3"/></svg></span><b>30 dias para pensarlo</b><span>Devolucion sin preguntas ni gastos.</span></div>
-            <div class="value"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 5 6v6c0 4.4 3 7.7 7 9 4-1.3 7-4.6 7-9V6z"/><path d="m9 12 2 2 4-4"/></svg></span><b>2 anos de garantia</b><span>Gestionada por nosotros, no por el fabricante.</span></div>
-            <div class="value"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg></span><b>Probado antes de enviar</b><span>Cada unidad pasa revision en almacen.</span></div>
-        </div>
+    <div class="section-head">
+    <div>
+    <h2>Los favoritos de la casa</h2>
+    <p>Los que mas repiten en las valoraciones y los que menos vuelven.</p>
     </div>
-</section>
+    <a class="link-more" href="/catalogo?orden=rating">Mejor valorados →</a>
+    </div>
+    <div class="grid grid-4">
+    {% for product in featured %}
+        {% include views/partials/card(product) %}
+    {% endfor %}
+    </div>
+    </div>
+    </section>
 
-<section class="section" style="padding-top:0">
+    <section class="section" style="padding-top:0">
     <div class="wrap">
-        <div class="section-head">
-            <div>
-                <h2>Compra por categoria</h2>
-                <p>Seis familias, sin relleno: solo lo que recomendariamos a un amigo.</p>
-            </div>
-            <a class="link-more" href="/catalogo">Ver el catalogo completo →</a>
-        </div>
-        <div class="tiles">
-            {% for category in shell.categories %}
-            <a class="tile" href="/catalogo?categoria={{ category.slug }}">
-                <span class="bg">{{& imagery.category_svg(category.slug) }}</span>
-                <span class="tile-count">{{ category.product_count }} productos</span>
-                <span class="tile-text">
-                    <h3>{{ category.name }}</h3>
-                    <p>{{ category.tagline }}</p>
-                </span>
-            </a>
-            {% endfor %}
-        </div>
+    <div class="panel" style="background: linear-gradient(120deg, #0d3b45, #14586a); color: #fff; border: 0; display: flex; align-items: center; justify-content: space-between; gap: 24px; flex-wrap: wrap; padding: 34px">
+    <div>
+    <span class="eyebrow" style="background: rgba(255,255,255,.14); border-color: rgba(255,255,255,.22)">Termina el domingo</span>
+    <h2 style="color:#fff; margin-top:12px">Semana Nova: hasta un 25% menos</h2>
+    <p style="color:#c6dde2; margin-top:6px; max-width: 52ch">
+    Rebajamos {{ deals.len() }} referencias de las familias que mas se mueven. Sin codigos ni letra pequena.
+    </p>
     </div>
-</section>
+    <a class="btn btn-primary btn-lg" href="/ofertas">Ver todas las ofertas</a>
+    </div>
+    </div>
+    </section>
 
-<section class="section" style="padding-top:0">
+    <section class="section" style="padding-top:0">
     <div class="wrap">
-        <div class="section-head">
-            <div>
-                <h2>Los favoritos de la casa</h2>
-                <p>Los que mas repiten en las valoraciones y los que menos vuelven.</p>
-            </div>
-            <a class="link-more" href="/catalogo?orden=rating">Mejor valorados →</a>
-        </div>
-        <div class="grid grid-4">
-            {% for product in featured %}
-            {% include views/partials/card(product) %}
-            {% endfor %}
-        </div>
+    <div class="section-head">
+    <div>
+    <h2>En oferta ahora</h2>
+    <p>Precio rebajado con stock real: cuando se acaba, se acaba.</p>
     </div>
-</section>
+    <a class="link-more" href="/ofertas">Todas las ofertas →</a>
+    </div>
+    <div class="grid grid-4">
+    {% for product in deals %}
+        {% include views/partials/card(product) %}
+    {% endfor %}
+    </div>
+    </div>
+    </section>
 
-<section class="section" style="padding-top:0">
+    <section class="section" style="padding-top:0">
     <div class="wrap">
-        <div class="panel" style="background: linear-gradient(120deg, #0d3b45, #14586a); color: #fff; border: 0; display: flex; align-items: center; justify-content: space-between; gap: 24px; flex-wrap: wrap; padding: 34px">
-            <div>
-                <span class="eyebrow" style="background: rgba(255,255,255,.14); border-color: rgba(255,255,255,.22)">Termina el domingo</span>
-                <h2 style="color:#fff; margin-top:12px">Semana Nova: hasta un 25% menos</h2>
-                <p style="color:#c6dde2; margin-top:6px; max-width: 52ch">
-                    Rebajamos {{ deals.len() }} referencias de las familias que mas se mueven. Sin codigos ni letra pequena.
-                </p>
-            </div>
-            <a class="btn btn-primary btn-lg" href="/ofertas">Ver todas las ofertas</a>
-        </div>
+    <div class="section-head">
+    <div>
+    <h2>Recien llegado</h2>
+    <p>Lo ultimo que ha entrado en el almacen.</p>
     </div>
-</section>
-
-<section class="section" style="padding-top:0">
-    <div class="wrap">
-        <div class="section-head">
-            <div>
-                <h2>En oferta ahora</h2>
-                <p>Precio rebajado con stock real: cuando se acaba, se acaba.</p>
-            </div>
-            <a class="link-more" href="/ofertas">Todas las ofertas →</a>
-        </div>
-        <div class="grid grid-4">
-            {% for product in deals %}
-            {% include views/partials/card(product) %}
-            {% endfor %}
-        </div>
+    <a class="link-more" href="/catalogo?orden=newest">Ver novedades →</a>
     </div>
-</section>
-
-<section class="section" style="padding-top:0">
-    <div class="wrap">
-        <div class="section-head">
-            <div>
-                <h2>Recien llegado</h2>
-                <p>Lo ultimo que ha entrado en el almacen.</p>
-            </div>
-            <a class="link-more" href="/catalogo?orden=newest">Ver novedades →</a>
-        </div>
-        <div class="grid grid-4">
-            {% for product in fresh %}
-            {% include views/partials/card(product) %}
-            {% endfor %}
-        </div>
+    <div class="grid grid-4">
+    {% for product in fresh %}
+        {% include views/partials/card(product) %}
+    {% endfor %}
     </div>
-</section>
+    </div>
+    </section>
 
 {% endblock %}

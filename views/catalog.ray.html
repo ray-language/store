@@ -7,209 +7,307 @@
 {% import src/urls %}
 {% block body %}
 
-<div class="wrap">
+    <div class="wrap">
     <div class="crumbs">
-        <a href="/">Inicio</a><span>/</span>
-        <a href="/catalogo">Catalogo</a>
-        {% if query.category != "" %}<span>/</span><span>{{ heading }}</span>{% endif %}
+    <a href="/">Inicio</a><span>/</span>
+    <a href="/catalogo">Catalogo</a>
+    {% if query.category != "" %}
+        <span>/</span><span>{{ heading }}</span>
+    {% endif %}
     </div>
 
     <div class="section-head" style="margin-bottom:20px">
-        <div>
-            <h1 style="font-size: clamp(1.8rem, 3vw, 2.5rem)">{{ heading }}</h1>
-            <p>{{ subheading }}</p>
-        </div>
+    <div>
+    <h1 style="font-size: clamp(1.8rem, 3vw, 2.5rem)">{{ heading }}</h1>
+    <p>{{ subheading }}</p>
+    </div>
     </div>
 
     <div class="catalog" style="padding-bottom: 40px">
-        <aside class="filters">
-            <div class="filter-group">
-                <h4>Categoria</h4>
-                <div class="filter-list">
-                    {% for facet in facets.categories %}
-                    <a class="filter-item {% if query.category == facet.value %}on{% endif %}"
-                       href="{{ urls.with_category(query, facet.value) }}">
-                        <span class="box">{% if query.category == facet.value %}✓{% endif %}</span>
-                        <span>{{ facet.label }}</span>
-                        <span class="n">{{ facet.count }}</span>
-                    </a>
-                    {% endfor %}
-                </div>
-            </div>
-
-            <div class="filter-group">
-                <h4>Marca</h4>
-                <div class="filter-list">
-                    {% for facet in facets.brands %}
-                    <a class="filter-item {% if urls.is_active(query.brands, facet.value) %}on{% endif %}"
-                       href="{{ urls.toggle_brand(query, facet.value) }}">
-                        <span class="box">{% if urls.is_active(query.brands, facet.value) %}✓{% endif %}</span>
-                        <span>{{ facet.label }}</span>
-                        <span class="n">{{ facet.count }}</span>
-                    </a>
-                    {% endfor %}
-                </div>
-            </div>
-
-            <div class="filter-group">
-                <h4>Precio</h4>
-                <form class="price-form" action="/catalogo" method="get">
-                    {{& urls.state_fields(query) }}
-                    <input type="number" name="min" min="0" placeholder="{{ facets.min_cents / 100 }}"
-                           value="{% if query.min_cents > 0 %}{{ query.min_cents / 100 }}{% endif %}" aria-label="Precio minimo">
-                    <span class="muted">–</span>
-                    <input type="number" name="max" min="0" placeholder="{{ facets.max_cents / 100 }}"
-                           value="{% if query.max_cents > 0 %}{{ query.max_cents / 100 }}{% endif %}" aria-label="Precio maximo">
-                    <button class="btn btn-dark btn-sm" type="submit">Ir</button>
-                </form>
-                <p class="tiny muted" style="margin-top:8px">
-                    Entre {{ money.eur_short(facets.min_cents) }} y {{ money.eur_short(facets.max_cents) }}
-                </p>
-            </div>
-
-            <div class="filter-group">
-                <h4>Color</h4>
-                <div class="filter-list">
-                    {% for facet in facets.colors %}
-                    <a class="filter-item {% if urls.is_active(query.colors, facet.value) %}on{% endif %}"
-                       href="{{ urls.toggle_color(query, facet.value) }}">
-                        <span class="dot" style="background: {{ facet.hex }}"></span>
-                        <span>{{ facet.label }}</span>
-                        <span class="n">{{ facet.count }}</span>
-                    </a>
-                    {% endfor %}
-                </div>
-            </div>
-
-            <div class="filter-group">
-                <h4>Talla / formato</h4>
-                <div class="filter-list">
-                    {% for facet in facets.sizes %}
-                    <a class="filter-item {% if urls.is_active(query.sizes, facet.value) %}on{% endif %}"
-                       href="{{ urls.toggle_size(query, facet.value) }}">
-                        <span class="box">{% if urls.is_active(query.sizes, facet.value) %}✓{% endif %}</span>
-                        <span>{{ facet.label }}</span>
-                        <span class="n">{{ facet.count }}</span>
-                    </a>
-                    {% endfor %}
-                </div>
-            </div>
-
-            <div class="filter-group">
-                <h4>Valoracion</h4>
-                <div class="filter-list">
-                    <a class="filter-item {% if query.min_rating == 45 %}on{% endif %}" href="{{ urls.with_rating(query, 45) }}">
-                        <span class="box">{% if query.min_rating == 45 %}✓{% endif %}</span><span>4,5 y mas</span>
-                    </a>
-                    <a class="filter-item {% if query.min_rating == 40 %}on{% endif %}" href="{{ urls.with_rating(query, 40) }}">
-                        <span class="box">{% if query.min_rating == 40 %}✓{% endif %}</span><span>4,0 y mas</span>
-                    </a>
-                </div>
-            </div>
-
-            <div class="filter-group">
-                <h4>Disponibilidad</h4>
-                <div class="filter-list">
-                    <a class="filter-item {% if query.in_stock %}on{% endif %}" href="{{ urls.toggle_in_stock(query) }}">
-                        <span class="box">{% if query.in_stock %}✓{% endif %}</span><span>Solo con stock</span>
-                    </a>
-                    <a class="filter-item {% if query.on_sale %}on{% endif %}" href="{{ urls.toggle_on_sale(query) }}">
-                        <span class="box">{% if query.on_sale %}✓{% endif %}</span><span>Solo rebajados</span>
-                    </a>
-                </div>
-            </div>
-        </aside>
-
-        <div>
-            {% if query.search != "" || query.category != "" || query.brands.len() > 0 || query.colors.len() > 0 || query.sizes.len() > 0 || query.min_cents > 0 || query.max_cents > 0 || query.min_rating > 0 || query.in_stock || query.on_sale %}
-            <div class="chips">
-                {% if query.search != "" %}
-                <a class="chip" href="{{ urls.without_search(query) }}">“{{ query.search }}” <span class="x">✕</span></a>
-                {% endif %}
-                {% if query.category != "" %}
-                <a class="chip" href="{{ urls.with_category(query, query.category) }}">{{ heading }} <span class="x">✕</span></a>
-                {% endif %}
-                {% for brand in query.brands %}
-                <a class="chip" href="{{ urls.toggle_brand(query, brand) }}">{{ brand }} <span class="x">✕</span></a>
-                {% endfor %}
-                {% for color in query.colors %}
-                <a class="chip" href="{{ urls.toggle_color(query, color) }}">{{ color }} <span class="x">✕</span></a>
-                {% endfor %}
-                {% for size in query.sizes %}
-                <a class="chip" href="{{ urls.toggle_size(query, size) }}">{{ size }} <span class="x">✕</span></a>
-                {% endfor %}
-                {% if query.min_cents > 0 || query.max_cents > 0 %}
-                <a class="chip" href="{{ urls.without_price(query) }}">
-                    {% if query.min_cents > 0 %}desde {{ money.eur_short(query.min_cents) }}{% endif %}
-                    {% if query.max_cents > 0 %}hasta {{ money.eur_short(query.max_cents) }}{% endif %}
-                    <span class="x">✕</span>
-                </a>
-                {% endif %}
-                {% if query.min_rating > 0 %}
-                <a class="chip" href="{{ urls.with_rating(query, query.min_rating) }}">{{ money.rating_text(query.min_rating) }} y mas <span class="x">✕</span></a>
-                {% endif %}
-                {% if query.in_stock %}
-                <a class="chip" href="{{ urls.toggle_in_stock(query) }}">Con stock <span class="x">✕</span></a>
-                {% endif %}
-                {% if query.on_sale %}
-                <a class="chip" href="{{ urls.toggle_on_sale(query) }}">Rebajados <span class="x">✕</span></a>
-                {% endif %}
-                <a class="chip chip-clear" href="{{ urls.clear() }}">Limpiar todo</a>
-            </div>
-            {% endif %}
-
-            <div class="toolbar">
-                <span class="muted small">
-                    {{ page.total }} productos · pagina {{ page.page }} de {{ page.pages }}
-                </span>
-                <form action="/catalogo" method="get">
-                    {{& urls.state_fields_with_search(query) }}
-                    <label class="small muted" for="orden">Ordenar por</label>
-                    <select id="orden" name="orden" onchange="this.form.submit()">
-                        <option value="featured" {% if query.sort == "featured" %}selected{% endif %}>Destacados</option>
-                        <option value="price-asc" {% if query.sort == "price-asc" %}selected{% endif %}>Precio: de menor a mayor</option>
-                        <option value="price-desc" {% if query.sort == "price-desc" %}selected{% endif %}>Precio: de mayor a menor</option>
-                        <option value="rating" {% if query.sort == "rating" %}selected{% endif %}>Mejor valorados</option>
-                        <option value="newest" {% if query.sort == "newest" %}selected{% endif %}>Novedades</option>
-                        <option value="discount" {% if query.sort == "discount" %}selected{% endif %}>Mayor descuento</option>
-                    </select>
-                    <noscript><button class="btn btn-ghost btn-sm" type="submit">Aplicar</button></noscript>
-                </form>
-            </div>
-
-            {% if page.items.len() == 0 %}
-            <div class="empty">
-                <h3>No hay nada que encaje con esos filtros</h3>
-                <p class="muted">Prueba a quitar alguno o vuelve al catalogo completo.</p>
-                <p style="margin-top:18px"><a class="btn btn-dark" href="/catalogo">Ver todo el catalogo</a></p>
-            </div>
-            {% else %}
-            <div class="grid grid-3">
-                {% for product in page.items %}
-                {% include views/partials/card(product) %}
-                {% endfor %}
-            </div>
-            {% endif %}
-
-            {% if page.pages > 1 %}
-            <nav class="pager">
-                {% if page.page > 1 %}
-                <a href="{{ urls.with_page(query, page.page - 1) }}">← Anterior</a>
-                {% endif %}
-                {% for number in 1..page.pages + 1 %}
-                {% if number == page.page %}
-                <span class="on">{{ number }}</span>
-                {% else %}
-                <a href="{{ urls.with_page(query, number) }}">{{ number }}</a>
-                {% endif %}
-                {% endfor %}
-                {% if page.page < page.pages %}
-                <a href="{{ urls.with_page(query, page.page + 1) }}">Siguiente →</a>
-                {% endif %}
-            </nav>
-            {% endif %}
-        </div>
+    <aside class="filters">
+    <div class="filter-group">
+    <h4>Categoria</h4>
+    <div class="filter-list">
+    {% for facet in facets.categories %}
+        <a class="filter-item
+        {% if query.category == facet.value %}
+            on
+        {% endif %}
+        "
+        href="{{ urls.with_category(query, facet.value) }}">
+        <span class="box">
+        {% if query.category == facet.value %}
+            ✓
+        {% endif %}
+        </span>
+        <span>{{ facet.label }}</span>
+        <span class="n">{{ facet.count }}</span>
+        </a>
+    {% endfor %}
     </div>
-</div>
+    </div>
+
+    <div class="filter-group">
+    <h4>Marca</h4>
+    <div class="filter-list">
+    {% for facet in facets.brands %}
+        <a class="filter-item
+        {% if urls.is_active(query.brands, facet.value) %}
+            on
+        {% endif %}
+        "
+        href="{{ urls.toggle_brand(query, facet.value) }}">
+        <span class="box">
+        {% if urls.is_active(query.brands, facet.value) %}
+            ✓
+        {% endif %}
+        </span>
+        <span>{{ facet.label }}</span>
+        <span class="n">{{ facet.count }}</span>
+        </a>
+    {% endfor %}
+    </div>
+    </div>
+
+    <div class="filter-group">
+    <h4>Precio</h4>
+    <form class="price-form" action="/catalogo" method="get">
+    {{& urls.state_fields(query) }}
+    <input type="number" name="min" min="0" placeholder="{{ facets.min_cents / 100 }}"
+    value="
+    {% if query.min_cents > 0 %}
+        {{ query.min_cents / 100 }}
+    {% endif %}
+    " aria-label="Precio minimo">
+    <span class="muted">–</span>
+    <input type="number" name="max" min="0" placeholder="{{ facets.max_cents / 100 }}"
+    value="
+    {% if query.max_cents > 0 %}
+        {{ query.max_cents / 100 }}
+    {% endif %}
+    " aria-label="Precio maximo">
+    <button class="btn btn-dark btn-sm" type="submit">Ir</button>
+    </form>
+    <p class="tiny muted" style="margin-top:8px">
+    Entre {{ money.eur_short(facets.min_cents) }} y {{ money.eur_short(facets.max_cents) }}
+    </p>
+    </div>
+
+    <div class="filter-group">
+    <h4>Color</h4>
+    <div class="filter-list">
+    {% for facet in facets.colors %}
+        <a class="filter-item
+        {% if urls.is_active(query.colors, facet.value) %}
+            on
+        {% endif %}
+        "
+        href="{{ urls.toggle_color(query, facet.value) }}">
+        <span class="dot" style="background: {{ facet.hex }}"></span>
+        <span>{{ facet.label }}</span>
+        <span class="n">{{ facet.count }}</span>
+        </a>
+    {% endfor %}
+    </div>
+    </div>
+
+    <div class="filter-group">
+    <h4>Talla / formato</h4>
+    <div class="filter-list">
+    {% for facet in facets.sizes %}
+        <a class="filter-item
+        {% if urls.is_active(query.sizes, facet.value) %}
+            on
+        {% endif %}
+        "
+        href="{{ urls.toggle_size(query, facet.value) }}">
+        <span class="box">
+        {% if urls.is_active(query.sizes, facet.value) %}
+            ✓
+        {% endif %}
+        </span>
+        <span>{{ facet.label }}</span>
+        <span class="n">{{ facet.count }}</span>
+        </a>
+    {% endfor %}
+    </div>
+    </div>
+
+    <div class="filter-group">
+    <h4>Valoracion</h4>
+    <div class="filter-list">
+    <a class="filter-item
+    {% if query.min_rating == 45 %}
+        on
+    {% endif %}
+    " href="{{ urls.with_rating(query, 45) }}">
+    <span class="box">
+    {% if query.min_rating == 45 %}
+        ✓
+    {% endif %}
+    </span><span>4,5 y mas</span>
+    </a>
+    <a class="filter-item
+    {% if query.min_rating == 40 %}
+        on
+    {% endif %}
+    " href="{{ urls.with_rating(query, 40) }}">
+    <span class="box">
+    {% if query.min_rating == 40 %}
+        ✓
+    {% endif %}
+    </span><span>4,0 y mas</span>
+    </a>
+    </div>
+    </div>
+
+    <div class="filter-group">
+    <h4>Disponibilidad</h4>
+    <div class="filter-list">
+    <a class="filter-item
+    {% if query.in_stock %}
+        on
+    {% endif %}
+    " href="{{ urls.toggle_in_stock(query) }}">
+    <span class="box">
+    {% if query.in_stock %}
+        ✓
+    {% endif %}
+    </span><span>Solo con stock</span>
+    </a>
+    <a class="filter-item
+    {% if query.on_sale %}
+        on
+    {% endif %}
+    " href="{{ urls.toggle_on_sale(query) }}">
+    <span class="box">
+    {% if query.on_sale %}
+        ✓
+    {% endif %}
+    </span><span>Solo rebajados</span>
+    </a>
+    </div>
+    </div>
+    </aside>
+
+    <div>
+    {% if query.search != "" || query.category != "" || query.brands.len() > 0 || query.colors.len() > 0 || query.sizes.len() > 0 || query.min_cents > 0 || query.max_cents > 0 || query.min_rating > 0 || query.in_stock || query.on_sale %}
+        <div class="chips">
+        {% if query.search != "" %}
+            <a class="chip" href="{{ urls.without_search(query) }}">“{{ query.search }}” <span class="x">✕</span></a>
+        {% endif %}
+        {% if query.category != "" %}
+            <a class="chip" href="{{ urls.with_category(query, query.category) }}">{{ heading }} <span class="x">✕</span></a>
+        {% endif %}
+        {% for brand in query.brands %}
+            <a class="chip" href="{{ urls.toggle_brand(query, brand) }}">{{ brand }} <span class="x">✕</span></a>
+        {% endfor %}
+        {% for color in query.colors %}
+            <a class="chip" href="{{ urls.toggle_color(query, color) }}">{{ color }} <span class="x">✕</span></a>
+        {% endfor %}
+        {% for size in query.sizes %}
+            <a class="chip" href="{{ urls.toggle_size(query, size) }}">{{ size }} <span class="x">✕</span></a>
+        {% endfor %}
+        {% if query.min_cents > 0 || query.max_cents > 0 %}
+            <a class="chip" href="{{ urls.without_price(query) }}">
+            {% if query.min_cents > 0 %}
+                desde {{ money.eur_short(query.min_cents) }}
+            {% endif %}
+            {% if query.max_cents > 0 %}
+                hasta {{ money.eur_short(query.max_cents) }}
+            {% endif %}
+            <span class="x">✕</span>
+            </a>
+        {% endif %}
+        {% if query.min_rating > 0 %}
+            <a class="chip" href="{{ urls.with_rating(query, query.min_rating) }}">{{ money.rating_text(query.min_rating) }} y mas <span class="x">✕</span></a>
+        {% endif %}
+        {% if query.in_stock %}
+            <a class="chip" href="{{ urls.toggle_in_stock(query) }}">Con stock <span class="x">✕</span></a>
+        {% endif %}
+        {% if query.on_sale %}
+            <a class="chip" href="{{ urls.toggle_on_sale(query) }}">Rebajados <span class="x">✕</span></a>
+        {% endif %}
+        <a class="chip chip-clear" href="{{ urls.clear() }}">Limpiar todo</a>
+        </div>
+    {% endif %}
+
+    <div class="toolbar">
+    <span class="muted small">
+    {{ page.total }} productos · pagina {{ page.page }} de {{ page.pages }}
+    </span>
+    <form action="/catalogo" method="get">
+    {{& urls.state_fields_with_search(query) }}
+    <label class="small muted" for="orden">Ordenar por</label>
+    <select id="orden" name="orden" onchange="this.form.submit()">
+    <option value="featured"
+    {% if query.sort == "featured" %}
+        selected
+    {% endif %}
+    >Destacados</option>
+    <option value="price-asc"
+    {% if query.sort == "price-asc" %}
+        selected
+    {% endif %}
+    >Precio: de menor a mayor</option>
+    <option value="price-desc"
+    {% if query.sort == "price-desc" %}
+        selected
+    {% endif %}
+    >Precio: de mayor a menor</option>
+    <option value="rating"
+    {% if query.sort == "rating" %}
+        selected
+    {% endif %}
+    >Mejor valorados</option>
+    <option value="newest"
+    {% if query.sort == "newest" %}
+        selected
+    {% endif %}
+    >Novedades</option>
+    <option value="discount"
+    {% if query.sort == "discount" %}
+        selected
+    {% endif %}
+    >Mayor descuento</option>
+    </select>
+    <noscript><button class="btn btn-ghost btn-sm" type="submit">Aplicar</button></noscript>
+    </form>
+    </div>
+
+    {% if page.items.len() == 0 %}
+        <div class="empty">
+        <h3>No hay nada que encaje con esos filtros</h3>
+        <p class="muted">Prueba a quitar alguno o vuelve al catalogo completo.</p>
+        <p style="margin-top:18px"><a class="btn btn-dark" href="/catalogo">Ver todo el catalogo</a></p>
+        </div>
+    {% else %}
+        <div class="grid grid-3">
+        {% for product in page.items %}
+            {% include views/partials/card(product) %}
+        {% endfor %}
+        </div>
+    {% endif %}
+
+    {% if page.pages > 1 %}
+        <nav class="pager">
+        {% if page.page > 1 %}
+            <a href="{{ urls.with_page(query, page.page - 1) }}">← Anterior</a>
+        {% endif %}
+        {% for number in 1..page.pages + 1 %}
+            {% if number == page.page %}
+                <span class="on">{{ number }}</span>
+            {% else %}
+                <a href="{{ urls.with_page(query, number) }}">{{ number }}</a>
+            {% endif %}
+        {% endfor %}
+        {% if page.page < page.pages %}
+            <a href="{{ urls.with_page(query, page.page + 1) }}">Siguiente →</a>
+        {% endif %}
+        </nav>
+    {% endif %}
+    </div>
+    </div>
+    </div>
 
 {% endblock %}

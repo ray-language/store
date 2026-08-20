@@ -6,35 +6,35 @@
 {% import src/money %}
 {% block body %}
 
-<div class="wrap" style="padding-block: 56px">
+    <div class="wrap" style="padding-block: 56px">
     <div class="panel center" style="max-width: 620px; margin-inline: auto">
-        <div style="font-size: 2.6rem">🎉</div>
-        <h1 style="font-size: 2rem; margin-top: 10px">Pedido confirmado</h1>
-        <p class="muted" style="margin-top:10px">
-            Gracias por comprar en Nova. Guarda esta referencia por si necesitas escribirnos.
-        </p>
-        <p style="margin-top:22px">
-            <span class="eyebrow" style="background: var(--accent-soft); color: var(--accent-dark); border-color: #ffd6c8; font-size: 1rem; letter-spacing: .12em">{{ placed.reference }}</span>
-        </p>
-        <div class="summary-row" style="max-width: 320px; margin: 22px auto 0">
-            <span class="muted">Articulos</span><span>{{ placed.units }}</span>
-        </div>
-        <div class="summary-row" style="max-width: 320px; margin-inline: auto">
-            <span class="muted">Total pagado</span><span><b>{{ money.eur(placed.total_cents) }}</b></span>
-        </div>
-        <p style="margin-top:26px"><a class="btn btn-primary btn-lg" href="/catalogo">Seguir comprando</a></p>
+    <div style="font-size: 2.6rem">🎉</div>
+    <h1 style="font-size: 2rem; margin-top: 10px">Pedido confirmado</h1>
+    <p class="muted" style="margin-top:10px">
+    Gracias por comprar en Nova. Guarda esta referencia por si necesitas escribirnos.
+    </p>
+    <p style="margin-top:22px">
+    <span class="eyebrow" style="background: var(--accent-soft); color: var(--accent-dark); border-color: #ffd6c8; font-size: 1rem; letter-spacing: .12em">{{ placed.reference }}</span>
+    </p>
+    <div class="summary-row" style="max-width: 320px; margin: 22px auto 0">
+    <span class="muted">Articulos</span><span>{{ placed.units }}</span>
+    </div>
+    <div class="summary-row" style="max-width: 320px; margin-inline: auto">
+    <span class="muted">Total pagado</span><span><b>{{ money.eur(placed.total_cents) }}</b></span>
+    </div>
+    <p style="margin-top:26px"><a class="btn btn-primary btn-lg" href="/catalogo">Seguir comprando</a></p>
     </div>
 
     {% if picks.len() > 0 %}
-    <section class="section" style="padding-bottom:0">
+        <section class="section" style="padding-bottom:0">
         <div class="section-head"><div><h2>Quiza para la proxima</h2></div></div>
         <div class="grid grid-4">
-            {% for product in picks %}
+        {% for product in picks %}
             {% include views/partials/card(product) %}
-            {% endfor %}
+        {% endfor %}
         </div>
-    </section>
+        </section>
     {% endif %}
-</div>
+    </div>
 
 {% endblock %}

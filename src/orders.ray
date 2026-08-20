@@ -20,33 +20,30 @@ pub struct Placed {
 }
 
 /// Persists the order and its lines. Returns the reference the customer sees.
-pub fn place(conn: sqlite.Conn, basket: Cart, customer: string, email: string,
-             address: string) -> Result<Placed, string> {
-    if (basket.lines.len() == 0) { return Result.Err("El carrito esta vacio."); }
-    if (customer.trim() == "") { return Result.Err("Falta el nombre de quien recibe el pedido."); }
-    if (!email.contains("@") || email.trim().len() < 5) { return Result.Err("El correo no parece valido."); }
+pub fn place(conn: sqlite.Conn, basket: Cart, customer: string, email: string, address: string) -> Result<Placed, string> {
+    if (basket.lines.len() == 0) {
+        return Result.Err("El carrito esta vacio.");
+    }
+    if (customer.trim() == "") {
+        return Result.Err("Falta el nombre de quien recibe el pedido.");
+    }
+    if (!email.contains("@") || email.trim().len() < 5) {
+        return Result.Err("El correo no parece valido.");
+    }
 
     let none: [string] = [];
     let reference = new_reference();
     let _ = sqlite.exec(conn, "BEGIN", none)?;
 
-    let _ = sqlite.exec(conn,
-        `INSERT INTO orders (reference, customer, email, address, total_cents, created_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6)`,
-        [reference, customer.trim(), email.trim(), address.trim(),
-         to_string(basket.total_cents), to_string(time.now())])?;
+    let _ = sqlite.exec(conn, `INSERT INTO orders (reference, customer, email, address, total_cents, created_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6)`, [reference, customer.trim(), email.trim(), address.trim(), to_string(basket.total_cents), to_string(time.now())])?;
     let order_id = sqlite.last_insert_rowid(conn)?;
 
     for line in basket.lines {
         let title = line.product_name + " · " + line.color + " · " + line.size;
-        let _ = sqlite.exec(conn,
-            `INSERT INTO order_items (order_id, variant_id, product_slug, title, unit_cents, quantity)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6)`,
-            [to_string(order_id), to_string(line.variant_id), line.product_slug, title,
-             to_string(line.unit_cents), to_string(line.quantity)])?;
-        let _ = sqlite.exec(conn,
-            "UPDATE variants SET stock = MAX(stock - ?1, 0) WHERE id = ?2",
-            [to_string(line.quantity), to_string(line.variant_id)])?;
+        let _ = sqlite.exec(conn, `INSERT INTO order_items (order_id, variant_id, product_slug, title, unit_cents, quantity)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6)`, [to_string(order_id), to_string(line.variant_id), line.product_slug, title, to_string(line.unit_cents), to_string(line.quantity)])?;
+        let _ = sqlite.exec(conn, "UPDATE variants SET stock = MAX(stock - ?1, 0) WHERE id = ?2", [to_string(line.quantity), to_string(line.variant_id)])?;
     }
 
     let _ = sqlite.exec(conn, "COMMIT", none)?;
@@ -55,14 +52,11 @@ pub fn place(conn: sqlite.Conn, basket: Cart, customer: string, email: string,
 
 /// Looks an order up by its reference, for the confirmation page.
 pub fn by_reference(conn: sqlite.Conn, reference: string) -> Result<Option<Placed>, string> {
-    let rows = sqlite.query(conn,
-        `SELECT o.reference, o.total_cents,
+    let rows = sqlite.query(conn, `SELECT o.reference, o.total_cents,
                 (SELECT COALESCE(SUM(i.quantity), 0) FROM order_items i WHERE i.order_id = o.id)
          FROM orders o WHERE o.reference = ?1`, [reference])?;
-    if (rows.len() == 0) { return Result.Ok(Option.None); }
-    Result.Ok(Option.Some(Placed {
-        reference: rows[0][0],
-        total_cents: database.as_int(rows[0][1]),
-        units: database.as_int(rows[0][2]),
-    }))
+    if (rows.len() == 0) {
+        return Result.Ok(Option.None);
+    }
+    Result.Ok(Option.Some(Placed { reference: rows[0][0], total_cents: database.as_int(rows[0][1]), units: database.as_int(rows[0][2]) }))
 }

@@ -8,18 +8,14 @@ from src/catalog import Query;
 // Arrays have reference semantics, so a copy has to clone its lists explicitly.
 fn cloned(values: [string]) -> [string] {
     var out: [string] = [];
-    for value in values { out.push(value); }
+    for value in values {
+        out.push(value);
+    }
     out
 }
 
 fn copy_of(q: Query) -> Query {
-    Query {
-        search: q.search, category: q.category,
-        brands: cloned(q.brands), colors: cloned(q.colors), sizes: cloned(q.sizes),
-        min_cents: q.min_cents, max_cents: q.max_cents, min_rating: q.min_rating,
-        in_stock: q.in_stock, on_sale: q.on_sale, sort: q.sort,
-        page: q.page, per_page: q.per_page,
-    }
+    Query { search: q.search, category: q.category, brands: cloned(q.brands), colors: cloned(q.colors), sizes: cloned(q.sizes), min_cents: q.min_cents, max_cents: q.max_cents, min_rating: q.min_rating, in_stock: q.in_stock, on_sale: q.on_sale, sort: q.sort, page: q.page, per_page: q.per_page }
 }
 
 fn toggled(values: [string], value: string) -> [string] {
@@ -34,7 +30,9 @@ pub fn is_active(values: [string], value: string) -> bool {
 }
 
 fn add_param(parts: [string], key: string, value: string) {
-    if (value != "") { parts.push(key + "=" + url.url_encode(value)); }
+    if (value != "") {
+        parts.push(key + "=" + url.url_encode(value));
+    }
 }
 
 /// The canonical URL of a query state.
@@ -45,14 +43,30 @@ pub fn catalog_url(q: Query) -> string {
     add_param(parts, "marca", q.brands.join(","));
     add_param(parts, "color", q.colors.join(","));
     add_param(parts, "talla", q.sizes.join(","));
-    if (q.min_cents > 0) { add_param(parts, "min", to_string(q.min_cents / 100)); }
-    if (q.max_cents > 0) { add_param(parts, "max", to_string(q.max_cents / 100)); }
-    if (q.min_rating > 0) { add_param(parts, "valoracion", to_string(q.min_rating)); }
-    if (q.in_stock) { add_param(parts, "stock", "1"); }
-    if (q.on_sale) { add_param(parts, "oferta", "1"); }
-    if (q.sort != "" && q.sort != "featured") { add_param(parts, "orden", q.sort); }
-    if (q.page > 1) { add_param(parts, "pagina", to_string(q.page)); }
-    if (parts.len() == 0) { return "/catalogo"; }
+    if (q.min_cents > 0) {
+        add_param(parts, "min", to_string(q.min_cents / 100));
+    }
+    if (q.max_cents > 0) {
+        add_param(parts, "max", to_string(q.max_cents / 100));
+    }
+    if (q.min_rating > 0) {
+        add_param(parts, "valoracion", to_string(q.min_rating));
+    }
+    if (q.in_stock) {
+        add_param(parts, "stock", "1");
+    }
+    if (q.on_sale) {
+        add_param(parts, "oferta", "1");
+    }
+    if (q.sort != "" && q.sort != "featured") {
+        add_param(parts, "orden", q.sort);
+    }
+    if (q.page > 1) {
+        add_param(parts, "pagina", to_string(q.page));
+    }
+    if (parts.len() == 0) {
+        return "/catalogo";
+    }
     "/catalogo?" + parts.join("&")
 }
 
@@ -139,9 +153,15 @@ pub fn state_fields(q: Query) -> string {
     out = out + markup.hidden_field("marca", q.brands.join(","));
     out = out + markup.hidden_field("color", q.colors.join(","));
     out = out + markup.hidden_field("talla", q.sizes.join(","));
-    if (q.min_rating > 0) { out = out + markup.hidden_field("valoracion", to_string(q.min_rating)); }
-    if (q.in_stock) { out = out + markup.hidden_field("stock", "1"); }
-    if (q.on_sale) { out = out + markup.hidden_field("oferta", "1"); }
+    if (q.min_rating > 0) {
+        out = out + markup.hidden_field("valoracion", to_string(q.min_rating));
+    }
+    if (q.in_stock) {
+        out = out + markup.hidden_field("stock", "1");
+    }
+    if (q.on_sale) {
+        out = out + markup.hidden_field("oferta", "1");
+    }
     out
 }
 
@@ -149,8 +169,12 @@ pub fn state_fields(q: Query) -> string {
 pub fn state_fields_with_search(q: Query) -> string {
     var out = state_fields(q);
     out = out + markup.hidden_field("q", q.search.trim());
-    if (q.min_cents > 0) { out = out + markup.hidden_field("min", to_string(q.min_cents / 100)); }
-    if (q.max_cents > 0) { out = out + markup.hidden_field("max", to_string(q.max_cents / 100)); }
+    if (q.min_cents > 0) {
+        out = out + markup.hidden_field("min", to_string(q.min_cents / 100));
+    }
+    if (q.max_cents > 0) {
+        out = out + markup.hidden_field("max", to_string(q.max_cents / 100));
+    }
     out
 }
 
@@ -159,6 +183,8 @@ pub fn product_url(slug: string, color: string, size: string) -> string {
     var parts: [string] = [];
     add_param(parts, "color", color);
     add_param(parts, "talla", size);
-    if (parts.len() == 0) { return "/producto/" + slug; }
+    if (parts.len() == 0) {
+        return "/producto/" + slug;
+    }
     "/producto/" + slug + "?" + parts.join("&")
 }
