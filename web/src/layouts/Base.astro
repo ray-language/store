@@ -1,7 +1,7 @@
 ---
 import '../styles/global.css';
 import CartBadge from '../components/CartBadge';
-import { fetchAtBuild } from '../lib/api';
+import { fetchAtBuild } from '../lib/build';
 
 interface Props { title: string; description?: string; active?: string }
 const { title, description = 'Tecnologia elegida a mano, con envio en 24 h.', active = '' } = Astro.props;

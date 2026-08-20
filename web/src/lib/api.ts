@@ -1,11 +1,11 @@
-// One place that knows where the raylang API lives.
+// The types and the browser-side client. Everything here runs in the BROWSER, so it must
+// never touch `process` — the pages are served by the raylang server under /app/ (and
+// proxied to it by `astro dev`), which makes every call same-origin and lets the islands
+// share the HttpOnly `nova_cart` cookie with the server-rendered store.
 //
-// At build time Astro talks to the running server over the network (`API_BASE`), which is
-// how the static pages get their data. In the browser the pages are served by that same
-// server under /app/, so the base is empty and every call is same-origin — which is what
-// lets the React islands share the `nova_cart` cookie with the server-rendered store.
+// The build-time counterpart, which does talk to the network from Node, lives in
+// `build.ts` and must only ever be imported from `.astro` frontmatter.
 
-export const BUILD_API_BASE = process.env.API_BASE ?? 'http://127.0.0.1:8080';
 export const CLIENT_API_BASE = '';
 
 export type Variant = {
@@ -86,14 +86,9 @@ export type Cart = {
   totalCents: number;
 };
 
-async function readJson<T>(response: Response): Promise<T> {
+export async function readJson<T>(response: Response): Promise<T> {
   if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
   return (await response.json()) as T;
-}
-
-/** Used from `.astro` frontmatter while the site is being generated. */
-export async function fetchAtBuild<T>(path: string): Promise<T> {
-  return readJson<T>(await fetch(`${BUILD_API_BASE}${path}`));
 }
 
 /** Used from the React islands, at runtime, against the same origin. */

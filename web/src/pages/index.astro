@@ -1,7 +1,8 @@
 ---
 import Base from '../layouts/Base.astro';
 import ProductCard from '../components/ProductCard';
-import { fetchAtBuild, euros } from '../lib/api';
+import { euros } from '../lib/api';
+import { fetchAtBuild } from '../lib/build';
 import type { Product, ProductPage } from '../lib/api';
 
 // Generated once, at build time: these three rails are plain HTML in the shipped file.
