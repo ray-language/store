@@ -1,21 +1,13 @@
-// The assets the store serves out of the binary itself: the stylesheet and the generated
-// artwork. Nothing here reads a file, which is what lets `ray build --native` produce a
-// binary that serves the whole storefront with no directory next to it.
-from web/framework import Ctx, Res, param, header, text;
+// The artwork the store generates on the fly. The stylesheet is NOT here: it is a real
+// `static/app.css` mounted by the router, so it can be edited, linted and cached like any
+// other asset without recompiling.
+from web/framework import Ctx, Res, param;
 import db/sqlite;
 import src/store/catalog;
 import src/ui/imagery;
-import src/ui/styles;
 import src/http/request;
 import src/http/respond;
 from src/http/respond import Reply;
-
-pub fn stylesheet(c: Ctx, r: Res) {
-    r
-        .header("Content-Type", "text/css; charset=utf-8")
-        .header("Cache-Control", "public, max-age=3600")
-        .text(styles.stylesheet());
-}
 
 /// The product picture. It goes through the catalog so an unknown slug is a real 404
 /// instead of a plausible-looking image for something that does not exist.

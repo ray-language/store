@@ -31,9 +31,10 @@ pub fn build() -> App {
     var app = new_app();
     app.log_requests();
 
-    // The SSR storefront needs nothing from disk: its HTML compiles in from the
-    // `.ray.html` templates, its pictures are generated (see `src/ui/imagery`) and its CSS
-    // is a raylang module. Only the Astro build is a real directory, mounted as-is.
+    // Two real directories, both served with ETag + 304: the storefront stylesheet and
+    // the Astro build. The rest of the store carries no files — its HTML compiles in from
+    // the `.ray.html` templates and its pictures are generated (see `src/ui/imagery`).
+    app.static_files_cached("/assets/", "static", 3600);
     app.static_files_cached("/app/", "web/dist", 300);
 
     // Storefront
@@ -51,8 +52,7 @@ pub fn build() -> App {
     app.POST("/checkout", purchase.place_order);
     app.GET("/pedido/:reference", purchase.confirmation);
 
-    // Assets served out of the binary
-    app.GET("/assets/app.css", assets.stylesheet);
+    // Generated artwork
     app.GET("/img/product/:slug", assets.product_image);
     app.GET("/img/category/:slug", assets.category_image);
     app.GET("/img/favicon.svg", assets.favicon);
