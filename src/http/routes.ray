@@ -24,6 +24,7 @@ import src/http/pages;
 import src/http/purchase;
 import src/http/assets;
 import src/http/api;
+import src/http/compress;
 import src/http/respond;
 from src/http/respond import Reply;
 
@@ -71,6 +72,9 @@ pub fn build() -> App {
         r.header("X-Content-Type-Options", "nosniff");
         r.header("Referrer-Policy", "strict-origin-when-cross-origin");
     });
+    // Last in the chain: it rewrites the body, so anything that still wants to touch it
+    // has to have run already.
+    app.after(compress.gzip_response);
 
     app.not_found(fn(c: Ctx, r: Res) {
         respond.with_db(c, r, fn(conn: sqlite.Conn) -> Result<Reply, string> {

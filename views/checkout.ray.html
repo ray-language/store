@@ -15,7 +15,7 @@
 
     <div class="cart-layout" style="margin-top:24px">
     <form class="panel stack" action="/checkout" method="post">
-    <h3>Datos de envio</h3>
+    <h2 class="panel-title">Datos de envio</h2>
     <div class="field">
     <label for="name">Nombre y apellidos</label>
     <input id="name" name="name" value="{{ name_value }}" required placeholder="Ada Lovelace">
@@ -36,7 +36,7 @@
     </form>
 
     <aside class="panel summary">
-    <h3>Tu pedido</h3>
+    <h2 class="panel-title">Tu pedido</h2>
     {% for line in basket.lines %}
         <div class="summary-row">
         <span class="muted">{{ line.quantity }} × {{ line.product_name }}<br><span class="tiny">{{ line.color }} · {{ line.size }}</span></span>

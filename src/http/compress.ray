@@ -1,0 +1,68 @@
+// gzip for the routed responses.
+//
+// `net/webserver` does not negotiate `Accept-Encoding`, and the pages are the expensive
+// part of the transfer: a catalog page is ~30 KB of HTML that no browser caches, so it
+// travels in full on every navigation. This runs in the `after` chain and swaps the body
+// for its gzipped form when the client asked for it.
+//
+// It cannot reach the static mounts (`/assets/`, `/app/`): those answer before the `after`
+// chain runs. Compressing them would need `Accept-Encoding` support inside
+// `webserver.static_mount` itself.
+//
+// COST, measured on a 30.6 KB catalog page (-> 4.8 KB, 6.4x less):
+//
+//   native binary   1.9 ms -> 5.4 ms      (+3.5 ms, worth it)
+//   VM (`ray run`)  2.8 ms -> 1016.6 ms   (+1 s, unusable)
+//
+// `std/deflate` is raylang, so the VM interprets it; the native build compiles it. Set
+// STORE_GZIP=0 to turn it off while developing on the VM.
+from web/framework import Ctx, Res, header, header_of;
+import std/deflate;
+
+// Below this, the gzip header and trailer cost more than they save.
+const MIN_BYTES: int = 900;
+
+fn enabled() -> bool {
+    match (env("STORE_GZIP")) {
+        Option.Some(value) => value.trim() != "0",
+        Option.None => true,
+    }
+}
+
+fn accepts_gzip(c: Ctx) -> bool {
+    c.header_of("accept-encoding").to_lower().contains("gzip")
+}
+
+// Only text-shaped payloads. The generated SVG counts; an already-compressed format would
+// just get bigger.
+fn worth_compressing(content_type: string) -> bool {
+    let kind = content_type.to_lower();
+    let textual = kind.contains("text/") || kind.contains("json") || kind.contains("svg");
+    textual || kind.contains("javascript") || kind.contains("xml")
+}
+
+/// Registered with `app.after(...)`: mutates the response in place.
+pub fn gzip_response(c: Ctx, r: Res) {
+    if (!enabled()) {
+        return;
+    }
+    if (!accepts_gzip(c)) {
+        return;
+    }
+    if (!worth_compressing(r.content_type)) {
+        return;
+    }
+    if (r.body.len() < MIN_BYTES) {
+        return;
+    }
+    let packed = deflate.gzip_compress(r.body);
+    // A payload that grew (already compact, or incompressible) is left alone.
+    if (packed.len() >= r.body.len()) {
+        return;
+    }
+    r.body = packed;
+    r.header("Content-Encoding", "gzip");
+    // Caches must key on the header, or a proxy could hand gzip to a client that cannot
+    // read it.
+    r.header("Vary", "Accept-Encoding");
+}

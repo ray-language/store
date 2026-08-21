@@ -26,7 +26,7 @@
     <div class="catalog" style="padding-bottom: 40px">
     <aside class="filters">
     <div class="filter-group">
-    <h4>Categoria</h4>
+    <h2>Categoria</h2>
     <div class="filter-list">
     {% for facet in facets.categories %}
         <a class="filter-item
@@ -48,7 +48,7 @@
     </div>
 
     <div class="filter-group">
-    <h4>Marca</h4>
+    <h2>Marca</h2>
     <div class="filter-list">
     {% for facet in facets.brands %}
         <a class="filter-item
@@ -70,7 +70,7 @@
     </div>
 
     <div class="filter-group">
-    <h4>Precio</h4>
+    <h2>Precio</h2>
     <form class="price-form" action="/catalogo" method="get">
     {{& urls.state_fields(query) }}
     <input type="number" name="min" min="0" placeholder="{{ facets.min_cents / 100 }}"
@@ -94,7 +94,7 @@
     </div>
 
     <div class="filter-group">
-    <h4>Color</h4>
+    <h2>Color</h2>
     <div class="filter-list">
     {% for facet in facets.colors %}
         <a class="filter-item
@@ -112,7 +112,7 @@
     </div>
 
     <div class="filter-group">
-    <h4>Talla / formato</h4>
+    <h2>Talla / formato</h2>
     <div class="filter-list">
     {% for facet in facets.sizes %}
         <a class="filter-item
@@ -134,7 +134,7 @@
     </div>
 
     <div class="filter-group">
-    <h4>Valoracion</h4>
+    <h2>Valoracion</h2>
     <div class="filter-list">
     <a class="filter-item
     {% if query.min_rating == 45 %}
@@ -162,7 +162,7 @@
     </div>
 
     <div class="filter-group">
-    <h4>Disponibilidad</h4>
+    <h2>Disponibilidad</h2>
     <div class="filter-list">
     <a class="filter-item
     {% if query.in_stock %}
@@ -277,7 +277,7 @@
 
     {% if page.items.len() == 0 %}
         <div class="empty">
-        <h3>No hay nada que encaje con esos filtros</h3>
+        <h2>No hay nada que encaje con esos filtros</h2>
         <p class="muted">Prueba a quitar alguno o vuelve al catalogo completo.</p>
         <p style="margin-top:18px"><a class="btn btn-dark" href="/catalogo">Ver todo el catalogo</a></p>
         </div>

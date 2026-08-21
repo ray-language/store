@@ -37,6 +37,7 @@ ray build --native          # binario nativo
 ray run main.ray reseed     # borra el catálogo y lo vuelve a sembrar
 PORT=9000 ray run           # otro puerto
 STORE_DB=/tmp/x.db ray run  # otra base de datos
+STORE_GZIP=0 ray run        # sin compresion (ver abajo: en la VM cuesta ~1 s por pagina)
 ```
 
 ## El frontend estático
@@ -113,7 +114,7 @@ src/http/     lo único que toca Ctx/Res
 | `store/catalog.ray` | Búsqueda con filtros, orden, paginación y **facetas contadas** |
 | `store/cart.ray` · `orders.ray` | Carrito repreciado y checkout transaccional |
 | `ui/view.ray` · `urls.ray` | Modelo del layout y construcción de los enlaces de filtro |
-| `ui/imagery.ray` · `styles.ray` | Las imágenes SVG y la hoja de estilos, en el binario |
+| `ui/imagery.ray` | Las imágenes de producto y categoría, generadas como SVG |
 | `http/request.ray` | Leer la petición: filtros, cookie del carrito, `back` |
 | `http/respond.ray` | El tipo `Reply` y el envoltorio que abre/cierra la BD y lo pinta |
 | `http/shell.ray` | El modelo de la cabecera por petición |
@@ -121,6 +122,7 @@ src/http/     lo único que toca Ctx/Res
 | `http/assets.ray` · `api.ray` | Los assets generados y la API JSON |
 | `http/routes.ray` | La tabla de rutas |
 | `views/*.ray.html` | Los templates compilados (layout + vistas + parciales) |
+| `static/app.css` | La hoja de estilos, servida con ETag/304 bajo `/assets/` |
 
 ### Frontend estático (`web/`)
 
@@ -137,24 +139,20 @@ src/http/     lo único que toca Ctx/Res
 
 ## Qué va dentro del binario
 
-`ray build --native` produce **un binario que sirve la tienda SSR entera sin un solo archivo
-al lado** — comprobado ejecutándolo en un directorio que solo contiene el binario y la base
-de datos:
+`ray build --native` produce un binario que lleva dentro todo el código y las plantillas.
+Lo que sigue viviendo en disco son los **archivos**, que se montan con `static_files_cached`
+y se sirven con `ETag` y `304`:
 
 | | ¿Dentro del binario? |
 |---|---|
 | El HTML (`views/*.ray.html`) | **Sí** — los templates se compilan a funciones raylang |
-| El CSS (`src/styles.ray`) | **Sí** — es un módulo, por eso `static/` ya no existe |
-| Las imágenes (`src/imagery.ray`) | **Sí** — son SVG generados, no archivos |
+| Las imágenes (`ui/imagery.ray`) | **Sí** — son SVG generados, no archivos |
 | SQLite | **Sí** — la librería C va compilada dentro |
-| El catálogo (`data/store.db`) | No: son datos, viven en disco |
-| **El frontend de Astro (`web/dist/`)** | **No** — se monta desde disco con `static_files_cached` |
+| El CSS (`static/app.css`) | No — archivo real, editable sin recompilar |
+| El frontend de Astro (`web/dist/`) | No — artefacto estático aparte |
+| El catálogo (`data/store.db`) | No: son datos |
 
-Es decir: el frontend **embebido** sí lo está por completo; el de Astro es un artefacto
-estático aparte que hay que desplegar junto al binario (o detrás de un CDN), que es como se
-despliega normalmente un sitio de Astro. Si lo quieres también dentro, harían falta ~960 KB
-de HTML/JS/CSS convertidos a literales de raylang y un paso de generación que acople la
-compilación de raylang a la de Astro.
+Para desplegar hacen falta, entonces, el binario más `static/`, `web/dist/` y `data/`.
 
 ## Decisiones que merece la pena conocer
 
@@ -182,6 +180,24 @@ enseñaría como `NaN €` en vez de fallar.
 cierra pase lo que pase —incluido cuando un `?` corta a mitad— y convierte un `Err` en un
 500. Por eso una página es una función en línea recta con `?` en vez de una torre de
 `match`, y por eso el `open`/`disconnect` está escrito una sola vez en todo el proyecto.
+
+**Las páginas se comprimen, y solo en nativo sale a cuenta.** `net/webserver` no negocia
+`Accept-Encoding`, así que `src/http/compress.ray` lo hace en la cadena `after`. Medido sobre
+una página de catálogo de 30,6 KB → 4,8 KB (6,4× menos):
+
+| | sin gzip | con gzip |
+|---|---|---|
+| binario nativo | 1,9 ms | **5,4 ms** |
+| VM (`ray run`) | 2,8 ms | **1016,6 ms** |
+
+`std/deflate` está escrito en raylang: el binario nativo lo compila y la VM lo interpreta, de
+ahí el factor 55×. Por eso hay `STORE_GZIP=0` para desarrollar sobre la VM. No alcanza a los
+montajes estáticos (`/assets/`, `/app/`), que responden antes de la cadena `after`.
+
+**El naranja de marca es para superficies, no para texto.** `#ff5b35` con texto blanco da
+3,09:1 y WCAG AA pide 4,5. En vez de apagar el color, el texto encima es tinta oscura
+(5,79:1); para texto naranja sobre fondo claro está `--accent-dark` (#c93c0d, 4,8:1). Con eso
+las cinco páginas dan 100 en accesibilidad.
 
 **SQL siempre parametrizado.** Los valores del usuario van como `?n`; lo único que se
 concatena en el SQL son identificadores de una lista cerrada (el `ORDER BY`).

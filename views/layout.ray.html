@@ -73,20 +73,20 @@ unidad antes de que salga del almacen.
 </p>
 </div>
 <div>
-<h4>Tienda</h4>
+<h2>Tienda</h2>
 {% for category in shell.categories %}
     <a href="/catalogo?categoria={{ category.slug }}">{{ category.name }}</a>
 {% endfor %}
 </div>
 <div>
-<h4>Ayuda</h4>
+<h2>Ayuda</h2>
 <a href="/catalogo">Estado del pedido</a>
 <a href="/catalogo">Envios y devoluciones</a>
 <a href="/catalogo">Garantia</a>
 <a href="/catalogo">Contacto</a>
 </div>
 <div>
-<h4>Desarrollo</h4>
+<h2>Desarrollo</h2>
 <a href="/api/products">API de productos</a>
 <a href="/api/facets">API de filtros</a>
 <a href="/salud">Estado del servicio</a>
