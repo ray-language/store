@@ -94,7 +94,7 @@ los `.astro`. Mezclarlos rompe la hidratación con `ReferenceError: process is n
 
 ### Backend (raylang)
 
-`main.ray` es solo el punto de entrada (~110 líneas: CLI, arranque y `listen`). Lo demás
+`main.ray` es solo el punto de entrada (~90 líneas: CLI, arranque y `listen`). Lo demás
 vive en `src/`, en cuatro capas que dependen hacia abajo:
 
 ```
@@ -120,6 +120,7 @@ src/http/     lo único que toca Ctx/Res
 | `http/shell.ray` | El modelo de la cabecera por petición |
 | `http/pages.ray` · `purchase.ray` | Las páginas SSR y el flujo de compra |
 | `http/assets.ray` · `api.ray` | Los assets generados y la API JSON |
+| `http/compress.ray` | El gzip de las páginas en la cadena `after` (ver más abajo) |
 | `http/routes.ray` | La tabla de rutas |
 | `views/*.ray.html` | Los templates compilados (layout + vistas + parciales) |
 | `static/app.css` | La hoja de estilos, servida con ETag/304 bajo `/assets/` |
@@ -128,13 +129,18 @@ src/http/     lo único que toca Ctx/Res
 
 | Archivo | Qué contiene |
 |---|---|
+| `src/layouts/Base.astro` | Layout común: nav generada en build desde `/api/taxonomy` + el badge |
 | `src/pages/index.astro` | Portada generada en build (cero JS salvo el badge del carrito) |
 | `src/pages/catalogo.astro` | Cáscara estática + la isla de filtros |
 | `src/pages/producto/[slug].astro` | Una página estática por producto |
 | `src/components/CatalogExplorer.tsx` | Isla: filtros y facetas en vivo contra la API |
 | `src/components/BuyBox.tsx` | Isla: selector de variante y añadir al carrito |
+| `src/components/AddToCartMini.tsx` | Isla: añadir desde la tarjeta con la primera variante con stock |
 | `src/components/CartBadge.tsx` | Isla: contador del carrito, sincronizado por eventos |
+| `src/components/ProductCard.tsx` · `Stars.tsx` | Tarjeta de producto y las estrellas de valoración |
 | `src/lib/api.ts` / `src/lib/build.ts` | Cliente de navegador / cliente de build (ver la regla de arriba) |
+| `src/lib/cart.ts` | Postea al API y difunde el carrito repreciado (`nova:cart`) a las demás islas |
+| `src/styles/global.css` | La paleta de la tienda como tokens de tema de Tailwind |
 | `astro.config.mjs` | Base `/app`, Tailwind y el proxy a raylang para `astro dev` |
 
 ## Qué va dentro del binario
@@ -167,7 +173,7 @@ contador del resto de marcas se calcula con el resto de filtros aplicados pero *
 marca — que es lo que hace que sigan siendo pulsables en vez de mostrar todo a cero.
 
 **Los filtros son enlaces, no JavaScript.** La tienda SSR entera —filtros, orden, paginación,
-carrito y checkout— funciona con el JS desactivado. `src/urls.ray` es la única pieza que
+carrito y checkout— funciona con el JS desactivado. `src/ui/urls.ray` es la única pieza que
 construye ese estado, y está cubierta por tests.
 
 **La API habla camelCase, siempre a mano.** `@derive(ToJson)` nombra las claves como los
