@@ -1,0 +1,43 @@
+// The swatch palette. Lives apart from the seed because the templates need it too:
+// the color a customer picks has to look the same in the filters, the card and the
+// product page.
+/// Palette used to paint the color swatches in the filters and the product page.
+pub fn color_hex(name: string) -> string {
+    if (name == "Negro") {
+        return "#1b1d21";
+    }
+    if (name == "Grafito") {
+        return "#4a4f57";
+    }
+    if (name == "Plata") {
+        return "#c9ced6";
+    }
+    if (name == "Blanco") {
+        return "#f2f0ec";
+    }
+    if (name == "Arena") {
+        return "#d9c6a8";
+    }
+    if (name == "Azul noche") {
+        return "#22335c";
+    }
+    if (name == "Verde salvia") {
+        return "#7f9c7a";
+    }
+    if (name == "Terracota") {
+        return "#b4653f";
+    }
+    if (name == "Oro rosa") {
+        return "#d9a08a";
+    }
+    if (name == "Lavanda") {
+        return "#9a8fc2";
+    }
+    if (name == "Coral") {
+        return "#e3705a";
+    }
+    if (name == "Oliva") {
+        return "#6b6a3c";
+    }
+    "#8b8f96"
+}

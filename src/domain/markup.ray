@@ -1,0 +1,20 @@
+// The only place that writes HTML by hand. Templates autoescape `{{ }}`, but the few
+// fragments assembled in raylang (the hidden fields that carry the filter state through
+// the search form) have to escape themselves.
+/// Escapes text for use inside an element or a double-quoted attribute.
+pub fn escape(raw: string) -> string {
+    raw
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace("\"", "&quot;")
+        .replace("'", "&#39;")
+}
+
+/// `<input type="hidden" name="..." value="...">`, with both sides escaped.
+pub fn hidden_field(name: string, value: string) -> string {
+    if (value == "") {
+        return "";
+    }
+    `<input type="hidden" name="${escape(name)}" value="${escape(value)}">`
+}

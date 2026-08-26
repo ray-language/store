@@ -1,0 +1,86 @@
+// The route table: the one place that says which URL runs which handler.
+//
+// It is a BUILDER, not a built `App`, because the framework calls it inside each request's
+// task: an `App` holds closures, and the isolated-heap actor model does not let a closure
+// cross threads in the native backend. Building it is cheap and the same source runs on
+// the VM and compiles with `ray build --native`.
+from web/framework import
+    new_app,
+    GET,
+    POST,
+    static_files_cached,
+    not_found,
+    log_requests,
+    after,
+    cors,
+    header,
+    status,
+    html,
+    App,
+    Ctx,
+    Res;
+import db/sqlite;
+import src/http/pages;
+import src/http/purchase;
+import src/http/assets;
+import src/http/api;
+import src/http/compress;
+import src/http/respond;
+from src/http/respond import Reply;
+
+pub fn build() -> App {
+    var app = new_app();
+    app.log_requests();
+
+    // Two real directories, both served with ETag + 304: the storefront stylesheet and
+    // the Astro build. The rest of the store carries no files — its HTML compiles in from
+    // the `.ray.html` templates and its pictures are generated (see `src/ui/imagery`).
+    app.static_files_cached("/assets/", "static", 3600);
+    app.static_files_cached("/app/", "web/dist", 300);
+
+    // Storefront
+    app.GET("/", pages.home);
+    app.GET("/catalogo", pages.catalog_page);
+    app.GET("/ofertas", pages.deals);
+    app.GET("/producto/:slug", pages.product);
+
+    // Buying flow
+    app.GET("/carrito", purchase.basket);
+    app.POST("/carrito/anadir", purchase.add);
+    app.POST("/carrito/actualizar", purchase.update);
+    app.POST("/carrito/quitar", purchase.remove);
+    app.GET("/checkout", purchase.checkout);
+    app.POST("/checkout", purchase.place_order);
+    app.GET("/pedido/:reference", purchase.confirmation);
+
+    // Generated artwork
+    app.GET("/img/product/:slug", assets.product_image);
+    app.GET("/img/category/:slug", assets.category_image);
+    app.GET("/img/favicon.svg", assets.favicon);
+
+    // JSON API
+    app.cors("*");
+    app.GET("/api/products", api.products);
+    app.GET("/api/products/:slug", api.product);
+    app.GET("/api/taxonomy", api.taxonomy);
+    app.GET("/api/facets", api.facets);
+    app.GET("/api/cart", api.basket);
+    app.POST("/api/cart/:action", api.mutate_basket);
+    app.GET("/salud", api.health);
+
+    app.after(fn(c: Ctx, r: Res) {
+        r.header("X-Content-Type-Options", "nosniff");
+        r.header("Referrer-Policy", "strict-origin-when-cross-origin");
+    });
+    // Last in the chain: it rewrites the body, so anything that still wants to touch it
+    // has to have run already.
+    app.after(compress.gzip_response);
+
+    app.not_found(fn(c: Ctx, r: Res) {
+        respond.with_db(c, r, fn(conn: sqlite.Conn) -> Result<Reply, string> {
+            Result.Ok(Reply.Missing)
+        });
+    });
+
+    app
+}

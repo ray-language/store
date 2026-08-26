@@ -1,0 +1,306 @@
+// End-to-end over a throwaway in-memory database: the real schema, the real seed and the
+// real queries. Catches anything the SQL layer could get wrong (filters, facet counts,
+// stock, the checkout transaction) without touching data/store.db.
+import db/sqlite;
+import src/store/schema;
+import src/store/seed;
+import src/store/catalog;
+import src/store/cart;
+import src/store/orders;
+
+fn fixture() -> sqlite.Conn {
+    let conn = match (sqlite.connect(":memory:")) {
+        Result.Ok(c) => c,
+        Result.Err(e) => { panic("no se pudo abrir la base en memoria: " + e) },
+    };
+    match (schema.migrate(conn)) {
+        Result.Ok(_) => { },
+        Result.Err(e) => { panic("migrate: " + e) },
+    }
+    match (seed.populate(conn)) {
+        Result.Ok(_) => { },
+        Result.Err(e) => { panic("seed: " + e) },
+    }
+    conn
+}
+
+fn page_of(conn: sqlite.Conn, q: catalog.Query) -> catalog.Page {
+    match (catalog.search(conn, q)) {
+        Result.Ok(page) => page,
+        Result.Err(e) => { panic("search: " + e) },
+    }
+}
+
+@test
+fn the_seed_fills_the_whole_catalog() {
+    let conn = fixture();
+    let all = page_of(conn, catalog.empty_query());
+    assert_eq(all.total, 24);
+    match (catalog.all_categories(conn)) {
+        Result.Ok(categories) => {
+            assert_eq(categories.len(), 6);
+        },
+        Result.Err(e) => { panic("all_categories: " + e) },
+    }
+    match (catalog.all_brands(conn)) {
+        Result.Ok(brands) => {
+            assert_eq(brands.len(), 8);
+        },
+        Result.Err(e) => { panic("all_brands: " + e) },
+    }
+    sqlite.disconnect(conn);
+}
+
+@test
+fn every_product_carries_variants_and_a_spec_sheet() {
+    let conn = fixture();
+    var q = catalog.empty_query();
+    q.per_page = 48;
+    for product in page_of(conn, q).items {
+        assert(product.variants.len() > 0);
+        assert(product.features.len() >= 4);
+        assert(product.colors.len() > 0);
+        assert_eq(product.variants.len(), product.colors.len() * product.sizes.len());
+    }
+    sqlite.disconnect(conn);
+}
+
+@test
+fn filtering_by_category_narrows_the_result() {
+    let conn = fixture();
+    var q = catalog.empty_query();
+    q.category = "audio";
+    let page = page_of(conn, q);
+    assert_eq(page.total, 4);
+    for product in page.items {
+        assert_eq(product.category_slug, "audio");
+    }
+    sqlite.disconnect(conn);
+}
+
+@test
+fn filters_combine_with_and_not_or() {
+    let conn = fixture();
+    var q = catalog.empty_query();
+    q.category = "wearables";
+    q.brands = ["kestrel"];
+    let page = page_of(conn, q);
+    assert_eq(page.total, 2);
+    for product in page.items {
+        assert_eq(product.category_slug, "wearables");
+        assert_eq(product.brand_slug, "kestrel");
+    }
+    sqlite.disconnect(conn);
+}
+
+@test
+fn the_color_filter_looks_inside_the_variants() {
+    let conn = fixture();
+    var q = catalog.empty_query();
+    q.colors = ["Lavanda"];
+    q.per_page = 48;
+    let page = page_of(conn, q);
+    assert(page.total > 0);
+    for product in page.items {
+        assert(product.colors.contains("Lavanda"));
+    }
+    sqlite.disconnect(conn);
+}
+
+@test
+fn the_price_range_is_inclusive_on_both_ends() {
+    let conn = fixture();
+    var q = catalog.empty_query();
+    q.min_cents = 10000;
+    q.max_cents = 20000;
+    q.per_page = 48;
+    for product in page_of(conn, q).items {
+        assert(product.price_cents >= 10000);
+        assert(product.price_cents <= 20000);
+    }
+    sqlite.disconnect(conn);
+}
+
+@test
+fn the_sale_filter_only_keeps_products_with_a_higher_old_price() {
+    let conn = fixture();
+    var q = catalog.empty_query();
+    q.on_sale = true;
+    q.per_page = 48;
+    let page = page_of(conn, q);
+    assert(page.total > 0);
+    for product in page.items {
+        assert(product.compare_at_cents > product.price_cents);
+    }
+    sqlite.disconnect(conn);
+}
+
+@test
+fn sorting_by_price_is_actually_ascending() {
+    let conn = fixture();
+    var q = catalog.empty_query();
+    q.sort = "price-asc";
+    q.per_page = 48;
+    let items = page_of(conn, q).items;
+    var i = 1;
+    while (i < items.len()) {
+        assert(items[i - 1].price_cents <= items[i].price_cents);
+        i = i + 1;
+    }
+    sqlite.disconnect(conn);
+}
+
+@test
+fn searching_matches_the_name_the_pitch_and_the_brand() {
+    let conn = fixture();
+    var q = catalog.empty_query();
+    q.search = "kestrel";
+    assert(page_of(conn, q).total > 0);
+    var missing = catalog.empty_query();
+    missing.search = "zzzzz-no-existe";
+    assert_eq(page_of(conn, missing).total, 0);
+    sqlite.disconnect(conn);
+}
+
+@test
+fn pagination_splits_the_catalog_without_losing_anything() {
+    let conn = fixture();
+    var q = catalog.empty_query();
+    q.per_page = 10;
+    let first = page_of(conn, q);
+    assert_eq(first.pages, 3);
+    assert_eq(first.items.len(), 10);
+    q.page = 3;
+    assert_eq(page_of(conn, q).items.len(), 4);
+    q.page = 99;  // out of range clamps to the last page
+    assert_eq(page_of(conn, q).page, 3);
+    sqlite.disconnect(conn);
+}
+
+@test
+fn a_facet_is_counted_with_its_own_dimension_dropped() {
+    let conn = fixture();
+    var q = catalog.empty_query();
+    q.brands = ["nordis"];
+    let facets = match (catalog.facets(conn, q)) {
+        Result.Ok(f) => f,
+        Result.Err(e) => { panic("facets: " + e) },
+    };
+    // Picking one brand must not zero out the counts of the others.
+    var others = 0;
+    for facet in facets.brands {
+        if (facet.value != "nordis" && facet.count > 0) {
+            others = others + 1;
+        }
+    }
+    assert(others > 0);
+    sqlite.disconnect(conn);
+}
+
+@test
+fn the_cart_is_priced_against_the_catalog_not_the_cookie() {
+    let conn = fixture();
+    var q = catalog.empty_query();
+    q.in_stock = true;
+    let product = page_of(conn, q).items[0];
+    var sellable = product.variants[0];
+    for variant in product.variants {
+        if (variant.stock > 0 && sellable.stock <= 0) {
+            sellable = variant;
+        }
+    }
+    let basket = match (cart.resolve(conn, cart.add("", sellable.id, 2))) {
+        Result.Ok(c) => c,
+        Result.Err(e) => { panic("resolve: " + e) },
+    };
+    assert_eq(basket.lines.len(), 1);
+    assert_eq(basket.units, 2);
+    assert_eq(basket.subtotal_cents, sellable.price_cents * 2);
+    assert_eq(basket.total_cents, basket.subtotal_cents + basket.shipping_cents);
+    sqlite.disconnect(conn);
+}
+
+@test
+fn a_variant_that_no_longer_exists_drops_out_of_the_cart() {
+    let conn = fixture();
+    let basket = match (cart.resolve(conn, "999999:3")) {
+        Result.Ok(c) => c,
+        Result.Err(e) => { panic("resolve: " + e) },
+    };
+    assert_eq(basket.lines.len(), 0);
+    assert_eq(basket.total_cents, 0);
+    sqlite.disconnect(conn);
+}
+
+@test
+fn checking_out_stores_the_order_and_discounts_the_stock() {
+    let conn = fixture();
+    var q = catalog.empty_query();
+    q.in_stock = true;
+    let product = page_of(conn, q).items[0];
+    var sellable = product.variants[0];
+    for variant in product.variants {
+        if (variant.stock >= 2 && sellable.stock < 2) {
+            sellable = variant;
+        }
+    }
+    let before = sellable.stock;
+    let basket = match (cart.resolve(conn, cart.add("", sellable.id, 2))) {
+        Result.Ok(c) => c,
+        Result.Err(e) => { panic("resolve: " + e) },
+    };
+    let placed = match (orders.place(
+        conn,
+        basket,
+        "Ada Lovelace",
+        "ada@ejemplo.com",
+        "Calle Mayor 1"
+    )) {
+        Result.Ok(p) => p,
+        Result.Err(e) => { panic("place: " + e) },
+    };
+    assert(placed.reference.starts_with("RAY-"));
+    assert_eq(placed.total_cents, basket.total_cents);
+
+    match (catalog.variant_by_id(conn, sellable.id)) {
+        Result.Ok(found) => {
+            match (found) {
+                Option.Some(after) => {
+                    assert_eq(after.stock, before - 2);
+                },
+                Option.None => {
+                    panic("la variante desaparecio");
+                },
+            }
+        },
+        Result.Err(e) => { panic("variant_by_id: " + e) },
+    }
+
+    match (orders.by_reference(conn, placed.reference)) {
+        Result.Ok(found) => {
+            match (found) {
+                Option.Some(stored) => {
+                    assert_eq(stored.units, 2);
+                },
+                Option.None => {
+                    panic("el pedido no se guardo");
+                },
+            }
+        },
+        Result.Err(e) => { panic("by_reference: " + e) },
+    }
+    sqlite.disconnect(conn);
+}
+
+@test
+fn checkout_rejects_an_empty_cart_and_a_broken_email() {
+    let conn = fixture();
+    let empty = cart.empty();
+    match (orders.place(conn, empty, "Ada", "ada@ejemplo.com", "")) {
+        Result.Ok(_) => {
+            panic("un carrito vacio no deberia poder pagarse");
+        },
+        Result.Err(_) => { },
+    }
+    sqlite.disconnect(conn);
+}

@@ -1,0 +1,119 @@
+// The view model shared by every page: what the layout (header, nav, cart badge) needs,
+// assembled once per request by `main.ray` and handed to the templates.
+from src/domain/models import Category, Product, Variant;
+
+pub struct Shell {
+    title: string,
+    description: string,
+    path: string,
+    search: string,
+    cart_units: int,
+    categories: [Category],
+}
+
+pub fn shell(
+    title: string,
+    description: string,
+    path: string,
+    search: string,
+    cart_units: int,
+    categories: [Category]
+) -> Shell {
+    Shell {
+        title: title,
+        description: description,
+        path: path,
+        search: search,
+        cart_units: cart_units,
+        categories: categories
+    }
+}
+
+/// True when `slug` is the section currently being browsed (nav highlighting).
+pub fn is_section(s: Shell, path: string) -> bool {
+    s.path == path
+}
+
+/// Stock wording shared by the cards, the product page and the cart.
+pub fn stock_label(stock: int) -> string {
+    if (stock <= 0) {
+        return "Agotado";
+    }
+    if (stock <= 5) {
+        return "Ultimas " + to_string(stock) + " unidades";
+    }
+    "En stock, envio en 24 h"
+}
+
+pub fn stock_class(stock: int) -> string {
+    if (stock <= 0) {
+        return "dot-no";
+    }
+    if (stock <= 5) {
+        return "dot-low";
+    }
+    "dot-ok"
+}
+
+/// Percentage of the free-shipping threshold already reached (capped at 100).
+pub fn progress_percent(subtotal_cents: int, threshold_cents: int) -> int {
+    if (threshold_cents <= 0) {
+        return 100;
+    }
+    let raw = subtotal_cents * 100 / threshold_cents;
+    if (raw > 100) { 100 } else { raw }
+}
+
+// ------------------------------------------------------------ variant selection
+/// The variant matching the chosen color/size, falling back to the first one that is
+/// in stock and finally to the first one at all (so the page always has something).
+pub fn pick_variant(product: Product, color: string, size: string) -> Variant {
+    for variant in product.variants {
+        if (variant.color == color && variant.size == size) {
+            return variant;
+        }
+    }
+    for variant in product.variants {
+        if (variant.color == color && variant.stock > 0) {
+            return variant;
+        }
+    }
+    for variant in product.variants {
+        if (variant.stock > 0) {
+            return variant;
+        }
+    }
+    if (product.variants.len() > 0) {
+        return product.variants[0];
+    }
+    Variant {
+        id: 0,
+        product_id: product.id,
+        sku: "",
+        color: "",
+        color_hex: "#ccc",
+        size: "",
+        price_cents: product.price_cents,
+        stock: 0
+    }
+}
+
+/// Is this color/size combination sellable right now?
+pub fn combination_in_stock(product: Product, color: string, size: string) -> bool {
+    for variant in product.variants {
+        if (variant.color == color && variant.size == size && variant.stock > 0) {
+            return true;
+        }
+    }
+    false
+}
+
+/// Does this color exist with any stock at all?
+pub fn color_in_stock(product: Product, color: string) -> bool {
+    for variant in product.variants {
+        if (variant.color == color && variant.stock > 0) {
+            return true;
+        }
+    }
+    false
+}

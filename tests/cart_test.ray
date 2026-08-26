@@ -1,0 +1,64 @@
+// The cart is pure string arithmetic until it meets the catalog, which makes it the
+// easiest part of the store to pin down with tests.
+import src/store/cart;
+from src/store/cart import Entry;
+
+@test
+fn an_empty_string_is_an_empty_cart() {
+    assert_eq(cart.parse("").len(), 0);
+    assert_eq(cart.units(""), 0);
+}
+
+@test
+fn adding_creates_and_then_accumulates_a_line() {
+    let one = cart.add("", 7, 2);
+    assert_eq(one, "7:2");
+    let two = cart.add(one, 7, 3);
+    assert_eq(two, "7:5");
+    assert_eq(cart.units(two), 5);
+}
+
+@test
+fn different_variants_keep_their_own_lines() {
+    var basket = cart.add("", 3, 1);
+    basket = cart.add(basket, 9, 2);
+    assert_eq(basket, "3:1,9:2");
+    assert_eq(cart.parse(basket).len(), 2);
+    assert_eq(cart.units(basket), 3);
+}
+
+@test
+fn a_line_never_goes_over_ten_units() {
+    let basket = cart.add("", 4, 40);
+    assert_eq(basket, "4:10");
+    assert_eq(cart.add(basket, 4, 5), "4:10");
+}
+
+@test
+fn setting_a_quantity_replaces_it_and_zero_removes_the_line() {
+    let basket = cart.add(cart.add("", 1, 1), 2, 1);
+    assert_eq(cart.set_quantity(basket, 1, 4), "1:4,2:1");
+    assert_eq(cart.set_quantity(basket, 1, 0), "2:1");
+    assert_eq(cart.remove(basket, 2), "1:1");
+}
+
+@test
+fn removing_something_that_is_not_there_changes_nothing() {
+    let basket = cart.add("", 5, 2);
+    assert_eq(cart.remove(basket, 99), "5:2");
+}
+
+@test
+fn garbage_in_the_cookie_is_ignored_rather_than_fatal() {
+    assert_eq(cart.parse("nonsense").len(), 0);
+    assert_eq(cart.parse("7:2,,broken,9:x,:,0:5").len(), 1);
+    assert_eq(cart.units("7:2,broken"), 2);
+}
+
+@test
+fn free_shipping_kicks_in_at_the_threshold() {
+    let threshold = cart.free_shipping_from();
+    assert_eq(cart.missing_for_free_shipping(threshold), 0);
+    assert_eq(cart.missing_for_free_shipping(threshold - 1500), 1500);
+    assert_eq(cart.missing_for_free_shipping(threshold + 9000), 0);
+}

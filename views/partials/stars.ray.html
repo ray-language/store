@@ -1,9 +1,9 @@
 {% params rating: int, reviews: int %}
-{% import src/money %}
+{% import src/domain/money %}
 <span class="stars">
-    <span class="stars-bar">
-        <span class="off">★★★★★</span>
-        <span class="on" style="width: {{ money.rating_percent(rating) }}%">★★★★★</span>
-    </span>
-    <span>{{ money.rating_text(rating) }} ({{ reviews }})</span>
+<span class="stars-bar">
+<span class="off">★★★★★</span>
+<span class="on" style="width: {{ money.rating_percent(rating) }}%">★★★★★</span>
+</span>
+<span>{{ money.rating_text(rating) }} ({{ reviews }})</span>
 </span>

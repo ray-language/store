@@ -1,59 +1,62 @@
 {% params shell: view.Shell, basket: models.Cart, error: string, name_value: string, email_value: string, address_value: string %}
 {% extends views/layout %}
-{% import src/view %}
-{% import src/models %}
-{% import src/money %}
+{% import src/ui/view %}
+{% import src/domain/models %}
+{% import src/domain/money %}
 {% block body %}
 
-<div class="wrap" style="padding-block: 32px 48px">
+    <div class="wrap" style="padding-block: 32px 48px">
     <div class="crumbs" style="padding-top:0"><a href="/carrito">Carrito</a><span>/</span><span>Datos de envio</span></div>
     <h1 style="font-size: clamp(1.8rem, 3vw, 2.5rem)">Finalizar compra</h1>
 
     {% if error != "" %}
-    <div class="notice notice-bad" style="margin-top:20px">{{ error }}</div>
+        <div class="notice notice-bad" style="margin-top:20px">{{ error }}</div>
     {% endif %}
 
     <div class="cart-layout" style="margin-top:24px">
-        <form class="panel stack" action="/checkout" method="post">
-            <h3>Datos de envio</h3>
-            <div class="field">
-                <label for="name">Nombre y apellidos</label>
-                <input id="name" name="name" value="{{ name_value }}" required placeholder="Ada Lovelace">
-            </div>
-            <div class="field">
-                <label for="email">Correo electronico</label>
-                <input id="email" name="email" type="email" value="{{ email_value }}" required placeholder="ada@ejemplo.com">
-            </div>
-            <div class="field">
-                <label for="address">Direccion completa</label>
-                <textarea id="address" name="address" rows="3" placeholder="Calle, numero, piso, codigo postal y ciudad">{{ address_value }}</textarea>
-            </div>
-            <p class="tiny muted">
-                Es una tienda de demostracion: no se cobra nada ni se envia ningun correo.
-                El pedido se guarda en SQLite y el stock se descuenta de verdad.
-            </p>
-            <button class="btn btn-primary btn-lg btn-block" type="submit">Confirmar pedido · {{ money.eur(basket.total_cents) }}</button>
-        </form>
-
-        <aside class="panel summary">
-            <h3>Tu pedido</h3>
-            {% for line in basket.lines %}
-            <div class="summary-row">
-                <span class="muted">{{ line.quantity }} × {{ line.product_name }}<br><span class="tiny">{{ line.color }} · {{ line.size }}</span></span>
-                <span>{{ money.eur(line.unit_cents * line.quantity) }}</span>
-            </div>
-            {% endfor %}
-            <div class="summary-row" style="border-top:1px solid var(--line); margin-top:8px; padding-top:12px">
-                <span class="muted">Subtotal</span><span>{{ money.eur(basket.subtotal_cents) }}</span>
-            </div>
-            <div class="summary-row">
-                <span class="muted">Envio</span>
-                {% if basket.shipping_cents == 0 %}<span style="color: var(--ok); font-weight:600">Gratis</span>
-                {% else %}<span>{{ money.eur(basket.shipping_cents) }}</span>{% endif %}
-            </div>
-            <div class="summary-total"><span>Total</span><span>{{ money.eur(basket.total_cents) }}</span></div>
-        </aside>
+    <form class="panel stack" action="/checkout" method="post">
+    <h2 class="panel-title">Datos de envio</h2>
+    <div class="field">
+    <label for="name">Nombre y apellidos</label>
+    <input id="name" name="name" value="{{ name_value }}" required placeholder="Ada Lovelace">
     </div>
-</div>
+    <div class="field">
+    <label for="email">Correo electronico</label>
+    <input id="email" name="email" type="email" value="{{ email_value }}" required placeholder="ada@ejemplo.com">
+    </div>
+    <div class="field">
+    <label for="address">Direccion completa</label>
+    <textarea id="address" name="address" rows="3" placeholder="Calle, numero, piso, codigo postal y ciudad">{{ address_value }}</textarea>
+    </div>
+    <p class="tiny muted">
+    Es una tienda de demostracion: no se cobra nada ni se envia ningun correo.
+    El pedido se guarda en SQLite y el stock se descuenta de verdad.
+    </p>
+    <button class="btn btn-primary btn-lg btn-block" type="submit">Confirmar pedido · {{ money.eur(basket.total_cents) }}</button>
+    </form>
+
+    <aside class="panel summary">
+    <h2 class="panel-title">Tu pedido</h2>
+    {% for line in basket.lines %}
+        <div class="summary-row">
+        <span class="muted">{{ line.quantity }} × {{ line.product_name }}<br><span class="tiny">{{ line.color }} · {{ line.size }}</span></span>
+        <span>{{ money.eur(line.unit_cents * line.quantity) }}</span>
+        </div>
+    {% endfor %}
+    <div class="summary-row" style="border-top:1px solid var(--line); margin-top:8px; padding-top:12px">
+    <span class="muted">Subtotal</span><span>{{ money.eur(basket.subtotal_cents) }}</span>
+    </div>
+    <div class="summary-row">
+    <span class="muted">Envio</span>
+    {% if basket.shipping_cents == 0 %}
+        <span style="color: var(--ok); font-weight:600">Gratis</span>
+    {% else %}
+        <span>{{ money.eur(basket.shipping_cents) }}</span>
+    {% endif %}
+    </div>
+    <div class="summary-total"><span>Total</span><span>{{ money.eur(basket.total_cents) }}</span></div>
+    </aside>
+    </div>
+    </div>
 
 {% endblock %}

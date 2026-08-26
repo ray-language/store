@@ -1,0 +1,17 @@
+# raylang
+.ray-deps/
+/nova
+/store
+
+# SQLite: the database is generated (and re-seeded) on first run
+data/*.db
+data/*.db-wal
+data/*.db-shm
+
+# Astro / node
+web/node_modules/
+web/dist/
+web/.astro/
+npm-debug.log*
+
+.DS_Store

@@ -1,0 +1,141 @@
+// Writing the response. Handlers do not touch `Res` directly: they return a `Reply` and
+// this module paints it. That is what lets a page be a straight-line function with `?`
+// instead of a tower of `match` — and it puts opening/closing the database in ONE place.
+from web/framework import Ctx, Res, html, json, text, status, header, cookie, redirect;
+import std/url;
+import db/sqlite;
+import src/store/database;
+import src/store/catalog;
+import src/http/request;
+import src/http/shell;
+import views/notfound;
+
+const CART_MAX_AGE: string = "2592000";  // 30 days
+
+/// Everything a handler can answer. The match that paints it is exhaustive, so adding a
+/// variant here makes the compiler point at every place that has to cover it.
+pub enum Reply {
+    Html(string),
+    HtmlCoded(int, string),  // a page with its own status (the 422 of a rejected checkout)
+    Json(string),
+    JsonCoded(int, string),
+    Svg(string),
+    Redirect(string),
+    Missing,  // 404 — this module renders the page
+}
+
+/// The 500. Deliberately dependency-free: it has to render even when the database is down.
+fn error_page() -> string {
+    `<!DOCTYPE html><meta charset="utf-8"><title>Error</title>
+        <body style="font-family: system-ui; padding: 60px; text-align: center">
+        <h1>Algo se ha roto</h1><p>Vuelve a intentarlo en un momento.</p>
+        <p><a href="/">Volver a la portada</a></p></body>`
+}
+
+fn fail(r: Res, message: string) {
+    eprint("store: " + message);
+    r.status(500).html(error_page());
+}
+
+fn not_found_page(conn: sqlite.Conn, c: Ctx) -> Result<string, string> {
+    let frame = shell.of(
+        conn,
+        c,
+        "Pagina no encontrada",
+        "La pagina que buscas no existe.",
+        "/404"
+    )?;
+    Result.Ok(notfound.render(frame, or_empty(catalog.featured(conn, 4))))
+}
+
+// `Missing` needs the catalog to render its suggestions, so it is only reachable from the
+// database-backed path; `plain` degrades it to a bare 404.
+fn write_reply(c: Ctx, r: Res, reply: Reply, conn: Option<sqlite.Conn>) {
+    match (reply) {
+        Reply.Html(body) => {
+            r.html(body);
+        },
+        Reply.HtmlCoded(code, body) => {
+            r.status(code).html(body);
+        },
+        Reply.Json(body) => {
+            r.json(body);
+        },
+        Reply.JsonCoded(code, body) => {
+            r.status(code).json(body);
+        },
+        Reply.Svg(body) => {
+            r
+                .header("Content-Type", "image/svg+xml; charset=utf-8")
+                .header("Cache-Control", "public, max-age=86400")
+                .text(body);
+        },
+        Reply.Redirect(target) => {
+            r.redirect(target);
+        },
+        Reply.Missing => {
+            match (conn) {
+                Option.Some(open) => {
+                    match (not_found_page(open, c)) {
+                        Result.Ok(page) => {
+                            r.status(404).html(page);
+                        },
+                        Result.Err(e) => {
+                            fail(r, e);
+                        },
+                    }
+                },
+                Option.None => {
+                    r.status(404).html("<h1>404</h1>");
+                },
+            }
+        },
+    }
+}
+
+/// Opens a connection, builds the reply, and closes it on every path — including the one
+/// where a `?` inside `build` short-circuits with an error.
+pub fn with_db(c: Ctx, r: Res, build: fn(sqlite.Conn) -> Result<Reply, string>) {
+    match (database.open()) {
+        Result.Ok(conn) => {
+            match (build(conn)) {
+                Result.Ok(reply) => {
+                    write_reply(c, r, reply, Option.Some(conn));
+                },
+                Result.Err(e) => {
+                    fail(r, e);
+                },
+            }
+            sqlite.disconnect(conn);
+        },
+        Result.Err(e) => {
+            fail(r, e);
+        },
+    }
+}
+
+/// Same, for the handlers that never touch the database (the generated assets).
+pub fn plain(c: Ctx, r: Res, reply: Reply) {
+    let none: Option<sqlite.Conn> = Option.None;
+    write_reply(c, r, reply, none);
+}
+
+/// The cart is state the SERVER never keeps: it travels in a cookie and is re-priced
+/// against the catalog on every request, so nothing the browser sends can change a price.
+pub fn store_cart(r: Res, value: string) {
+    r.cookie(
+        request.CART_COOKIE + "=" + url.url_encode(value) + "; Path=/; HttpOnly; SameSite=Lax; Max-Age=" + CART_MAX_AGE
+    );
+}
+
+/// A rail that fails should not take the whole page down: "también miró" comes back empty
+/// and the page still renders. Reserved for genuinely optional queries.
+pub fn or_empty<T>(result: Result<[T], string>) -> [T] {
+    match (result) {
+        Result.Ok(items) => items,
+        Result.Err(e) => {
+            eprint("store: " + e);
+            []
+        },
+    }
+}

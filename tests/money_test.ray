@@ -1,0 +1,44 @@
+// Money is stored in cents and only ever formatted at the edge; these tests fix the
+// Spanish notation (dot for thousands, comma for decimals).
+import src/domain/money;
+
+@test
+fn amounts_use_spanish_notation() {
+    assert_eq(money.eur(0), "0,00 €");
+    assert_eq(money.eur(5), "0,05 €");
+    assert_eq(money.eur(8900), "89,00 €");
+    assert_eq(money.eur(129900), "1.299,00 €");
+    assert_eq(money.eur(123456789), "1.234.567,89 €");
+}
+
+@test
+fn negative_amounts_keep_their_sign() {
+    assert_eq(money.eur(-2550), "-25,50 €");
+}
+
+@test
+fn the_short_form_drops_the_cents() {
+    assert_eq(money.eur_short(129900), "1.299 €");
+    assert_eq(money.eur_short(8900), "89 €");
+}
+
+@test
+fn the_discount_is_a_whole_percentage_of_the_old_price() {
+    assert_eq(money.discount_percent(24900, 31900), 21);
+    assert_eq(money.discount_percent(50, 100), 50);
+}
+
+@test
+fn something_that_is_not_on_sale_has_no_discount() {
+    assert_eq(money.discount_percent(10000, 0), 0);
+    assert_eq(money.discount_percent(10000, 9000), 0);
+    assert_eq(money.discount_percent(10000, 10000), 0);
+}
+
+@test
+fn ratings_are_tenths_of_a_star() {
+    assert_eq(money.rating_text(47), "4,7");
+    assert_eq(money.rating_text(50), "5,0");
+    assert_eq(money.rating_percent(50), 100);
+    assert_eq(money.rating_percent(40), 80);
+}

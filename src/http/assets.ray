@@ -1,0 +1,36 @@
+// The artwork the store generates on the fly. The stylesheet is NOT here: it is a real
+// `static/app.css` mounted by the router, so it can be edited, linted and cached like any
+// other asset without recompiling.
+from web/framework import Ctx, Res, param;
+import db/sqlite;
+import src/store/catalog;
+import src/ui/imagery;
+import src/http/request;
+import src/http/respond;
+from src/http/respond import Reply;
+
+/// The product picture. It goes through the catalog so an unknown slug is a real 404
+/// instead of a plausible-looking image for something that does not exist.
+pub fn product_image(c: Ctx, r: Res) {
+    respond.with_db(c, r, fn(conn: sqlite.Conn) -> Result<Reply, string> {
+        match (catalog.by_slug(
+        conn,
+        request.slug_of(c.param("slug"))
+    )?) {
+            Option.Some(found) => Result.Ok(Reply.Svg(imagery.product_svg(found.slug, found.category_slug))),
+            Option.None => Result.Ok(Reply.Missing),
+        }
+    });
+}
+
+/// Category artwork is a pure function of the slug, so it needs no lookup.
+pub fn category_image(c: Ctx, r: Res) {
+    respond.plain(c, r, Reply.Svg(imagery.category_svg(request.slug_of(c.param("slug")))));
+}
+
+pub fn favicon(c: Ctx, r: Res) {
+    respond.plain(c, r, Reply.Svg(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+        <rect width="32" height="32" rx="9" fill="#ff5b35"/>
+        <path d="M10 22V10l12 12V10" fill="none" stroke="#fff" stroke-width="3.4"
+              stroke-linecap="round" stroke-linejoin="round"/></svg>`));
+}

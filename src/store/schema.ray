@@ -1,0 +1,132 @@
+// The relational schema and its bootstrap. `ensure()` is idempotent: it creates what is
+// missing and seeds the catalog only when the database is still empty, so `ray run`
+// works on a clean checkout without any extra step.
+import db/sqlite;
+import src/store/database;
+import src/store/seed;
+
+fn ddl() -> [string] {
+    [
+        `CREATE TABLE IF NOT EXISTS categories (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        slug        TEXT    NOT NULL UNIQUE,
+        name        TEXT    NOT NULL,
+        tagline     TEXT    NOT NULL DEFAULT '',
+        icon        TEXT    NOT NULL DEFAULT '',
+        sort_order  INTEGER NOT NULL DEFAULT 0
+    )`,
+        `CREATE TABLE IF NOT EXISTS brands (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        slug        TEXT    NOT NULL UNIQUE,
+        name        TEXT    NOT NULL,
+        tagline     TEXT    NOT NULL DEFAULT ''
+    )`,
+        `CREATE TABLE IF NOT EXISTS products (
+        id               INTEGER PRIMARY KEY AUTOINCREMENT,
+        slug             TEXT    NOT NULL UNIQUE,
+        name             TEXT    NOT NULL,
+        tagline          TEXT    NOT NULL DEFAULT '',
+        description      TEXT    NOT NULL DEFAULT '',
+        category_id      INTEGER NOT NULL REFERENCES categories(id),
+        brand_id         INTEGER NOT NULL REFERENCES brands(id),
+        price_cents      INTEGER NOT NULL,
+        compare_at_cents INTEGER NOT NULL DEFAULT 0,
+        rating           INTEGER NOT NULL DEFAULT 0,
+        reviews          INTEGER NOT NULL DEFAULT 0,
+        badge            TEXT    NOT NULL DEFAULT '',
+        featured         INTEGER NOT NULL DEFAULT 0,
+        created_at       INTEGER NOT NULL DEFAULT 0
+    )`,
+        `CREATE TABLE IF NOT EXISTS variants (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        product_id  INTEGER NOT NULL REFERENCES products(id),
+        sku         TEXT    NOT NULL UNIQUE,
+        color       TEXT    NOT NULL DEFAULT '',
+        color_hex   TEXT    NOT NULL DEFAULT '',
+        size        TEXT    NOT NULL DEFAULT '',
+        price_cents INTEGER NOT NULL,
+        stock       INTEGER NOT NULL DEFAULT 0
+    )`,
+        `CREATE TABLE IF NOT EXISTS features (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        product_id  INTEGER NOT NULL REFERENCES products(id),
+        name        TEXT    NOT NULL,
+        value       TEXT    NOT NULL,
+        position    INTEGER NOT NULL DEFAULT 0
+    )`,
+        `CREATE TABLE IF NOT EXISTS orders (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        reference    TEXT    NOT NULL UNIQUE,
+        customer     TEXT    NOT NULL,
+        email        TEXT    NOT NULL,
+        address      TEXT    NOT NULL DEFAULT '',
+        total_cents  INTEGER NOT NULL,
+        created_at   INTEGER NOT NULL DEFAULT 0
+    )`,
+        `CREATE TABLE IF NOT EXISTS order_items (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        order_id     INTEGER NOT NULL REFERENCES orders(id),
+        variant_id   INTEGER NOT NULL,
+        product_slug TEXT    NOT NULL,
+        title        TEXT    NOT NULL,
+        unit_cents   INTEGER NOT NULL,
+        quantity     INTEGER NOT NULL
+    )`,
+        "CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_id)",
+        "CREATE INDEX IF NOT EXISTS idx_products_brand ON products(brand_id)",
+        "CREATE INDEX IF NOT EXISTS idx_products_price ON products(price_cents)",
+        "CREATE INDEX IF NOT EXISTS idx_variants_product ON variants(product_id)",
+        "CREATE INDEX IF NOT EXISTS idx_features_product ON features(product_id)"
+    ]
+}
+
+/// Creates the tables if they are missing.
+pub fn migrate(conn: sqlite.Conn) -> Result<int, string> {
+    let none: [string] = [];
+    let statements = ddl();
+    for statement in statements {
+        let _ = sqlite.exec(conn, statement, none)?;
+    }
+    Result.Ok(statements.len())
+}
+
+/// How many products the catalog holds right now.
+pub fn product_count(conn: sqlite.Conn) -> Result<int, string> {
+    let none: [string] = [];
+    let rows = sqlite.query(conn, "SELECT COUNT(*) FROM products", none)?;
+    if (rows.len() == 0) {
+        return Result.Ok(0);
+    }
+    Result.Ok(database.as_int(rows[0][0]))
+}
+
+/// Migrate + seed-if-empty. Returns the number of products in the catalog.
+pub fn ensure(conn: sqlite.Conn) -> Result<int, string> {
+    let _ = migrate(conn)?;
+    let existing = product_count(conn)?;
+    if (existing > 0) {
+        return Result.Ok(existing);
+    }
+    seed.populate(conn)?;
+    product_count(conn)
+}
+
+/// Drops every catalog row and seeds again (the `reseed` CLI command).
+pub fn reset(conn: sqlite.Conn) -> Result<int, string> {
+    let none: [string] = [];
+    let _ = migrate(conn)?;
+    for table in [
+        "order_items",
+        "orders",
+        "features",
+        "variants",
+        "products",
+        "brands",
+        "categories"
+    ] {
+        let _ = sqlite.exec(conn, "DELETE FROM " + table, none)?;
+    }
+    let _ = sqlite.exec(conn, "DELETE FROM sqlite_sequence", none);
+    seed.populate(conn)?;
+    product_count(conn)
+}
