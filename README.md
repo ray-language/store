@@ -20,6 +20,9 @@ storefront embebido. El mismo proceso publica una **API JSON** que consume un fr
 
 ## Arrancar
 
+Requiere raylang 1.27 o posterior. Las dependencias (`web`, `net`, `db`) salen del índice de
+paquetes; `ray fetch` las descarga según `ray.lock`.
+
 ```sh
 ray run                     # crea y siembra data/store.db la primera vez, y escucha en :8080
 ```
@@ -32,7 +35,7 @@ Otros comandos:
 
 ```sh
 ray dev                     # lo mismo con hot reload y live-reload del navegador
-ray test                    # 38 tests (unidad + integración contra SQLite en memoria)
+ray test                    # 39 tests (unidad + integración contra SQLite en memoria)
 ray build --native          # binario nativo
 ray run main.ray reseed     # borra el catálogo y lo vuelve a sembrar
 PORT=9000 ray run           # otro puerto
@@ -187,8 +190,10 @@ cierra pase lo que pase —incluido cuando un `?` corta a mitad— y convierte u
 500. Por eso una página es una función en línea recta con `?` en vez de una torre de
 `match`, y por eso el `open`/`disconnect` está escrito una sola vez en todo el proyecto.
 
-**Las páginas se comprimen, y solo en nativo sale a cuenta.** `net/webserver` no negocia
-`Accept-Encoding`, así que `src/http/compress.ray` lo hace en la cadena `after`. Medido sobre
+**Las páginas se comprimen, y solo en nativo sale a cuenta.** `net/webserver` solo negocia
+`Accept-Encoding` sobre un `webserver.Response` crudo (`webserver.gzip`), no sobre el `Res`
+del framework, así que `src/http/compress.ray` comprime en la cadena `after` (reutilizando
+`webserver.accepts_gzip`, que respeta `gzip;q=0`). Medido sobre
 una página de catálogo de 30,6 KB → 4,8 KB (6,4× menos):
 
 | | sin gzip | con gzip |
