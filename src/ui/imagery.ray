@@ -15,9 +15,13 @@ pub fn hue_of(slug: string) -> int {
 }
 
 fn hsl(hue: int, saturation: int, lightness: int) -> string {
-    "hsl(" + to_string(
-        (hue % 360 + 360) % 360
-    ) + ", " + to_string(saturation) + "%, " + to_string(lightness) + "%)"
+    "hsl("
+        + to_string((hue % 360 + 360) % 360)
+        + ", "
+        + to_string(saturation)
+        + "%, "
+        + to_string(lightness)
+        + "%)"
 }
 
 // A line-art glyph per category, drawn inside a 0..100 box.

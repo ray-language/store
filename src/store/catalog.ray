@@ -89,7 +89,15 @@ fn build_filter(q: Query) -> Filter {
     if (q.search.trim() != "") {
         let mark = placeholder(params, database.like_term(q.search));
         clauses.push(
-            "(LOWER(p.name) LIKE " + mark + " OR LOWER(p.tagline) LIKE " + mark + " OR LOWER(p.description) LIKE " + mark + " OR LOWER(b.name) LIKE " + mark + ")"
+            "(LOWER(p.name) LIKE "
+                + mark
+                + " OR LOWER(p.tagline) LIKE "
+                + mark
+                + " OR LOWER(p.description) LIKE "
+                + mark
+                + " OR LOWER(b.name) LIKE "
+                + mark
+                + ")"
         );
     }
     if (q.category != "") {
@@ -100,12 +108,16 @@ fn build_filter(q: Query) -> Filter {
     }
     if (q.colors.len() > 0) {
         clauses.push(
-            "EXISTS (SELECT 1 FROM variants v WHERE v.product_id = p.id AND v.color IN (" + placeholders(params, q.colors) + "))"
+            "EXISTS (SELECT 1 FROM variants v WHERE v.product_id = p.id AND v.color IN ("
+                + placeholders(params, q.colors)
+                + "))"
         );
     }
     if (q.sizes.len() > 0) {
         clauses.push(
-            "EXISTS (SELECT 1 FROM variants v WHERE v.product_id = p.id AND v.size IN (" + placeholders(params, q.sizes) + "))"
+            "EXISTS (SELECT 1 FROM variants v WHERE v.product_id = p.id AND v.size IN ("
+                + placeholders(params, q.sizes)
+                + "))"
         );
     }
     if (q.min_cents > 0) {
@@ -223,7 +235,10 @@ fn hydrate(conn: sqlite.Conn, products: [Product]) -> Result<int, string> {
 
     let variant_rows = sqlite.query(
         conn,
-        "SELECT id, product_id, sku, color, color_hex, size, price_cents, stock FROM variants" + " WHERE product_id IN (" + ids + ") ORDER BY id ASC",
+        "SELECT id, product_id, sku, color, color_hex, size, price_cents, stock FROM variants"
+            + " WHERE product_id IN ("
+            + ids
+            + ") ORDER BY id ASC",
         none
     )?;
     for row in variant_rows {
@@ -254,7 +269,10 @@ fn hydrate(conn: sqlite.Conn, products: [Product]) -> Result<int, string> {
 
     let feature_rows = sqlite.query(
         conn,
-        "SELECT product_id, name, value FROM features WHERE product_id IN (" + ids + ")" + " ORDER BY position ASC, id ASC",
+        "SELECT product_id, name, value FROM features WHERE product_id IN ("
+            + ids
+            + ")"
+            + " ORDER BY position ASC, id ASC",
         none
     )?;
     for row in feature_rows {
@@ -306,7 +324,14 @@ pub fn search(conn: sqlite.Conn, q: Query) -> Result<Page, string> {
     let offset = placeholder(params, to_string((page - 1) * per_page));
     let items = fetch_products(
         conn,
-        PRODUCT_COLUMNS + BASE_FROM + filter.sql + order_by(q.sort) + " LIMIT " + limit + " OFFSET " + offset,
+        PRODUCT_COLUMNS
+            + BASE_FROM
+            + filter.sql
+            + order_by(q.sort)
+            + " LIMIT "
+            + limit
+            + " OFFSET "
+            + offset,
         params
     )?;
 
@@ -330,7 +355,10 @@ pub fn by_slug(conn: sqlite.Conn, slug: string) -> Result<Option<Product>, strin
 pub fn related(conn: sqlite.Conn, product: Product, how_many: int) -> Result<[Product], string> {
     fetch_products(
         conn,
-        PRODUCT_COLUMNS + BASE_FROM + " WHERE c.slug = ?1 AND p.id <> ?2" + " ORDER BY p.rating DESC, p.reviews DESC LIMIT ?3",
+        PRODUCT_COLUMNS
+            + BASE_FROM
+            + " WHERE c.slug = ?1 AND p.id <> ?2"
+            + " ORDER BY p.rating DESC, p.reviews DESC LIMIT ?3",
         [product.category_slug, to_string(product.id), to_string(how_many)]
     )
 }
@@ -339,7 +367,10 @@ pub fn related(conn: sqlite.Conn, product: Product, how_many: int) -> Result<[Pr
 pub fn featured(conn: sqlite.Conn, how_many: int) -> Result<[Product], string> {
     fetch_products(
         conn,
-        PRODUCT_COLUMNS + BASE_FROM + " WHERE p.featured = 1" + " ORDER BY p.rating DESC, p.reviews DESC LIMIT ?1",
+        PRODUCT_COLUMNS
+            + BASE_FROM
+            + " WHERE p.featured = 1"
+            + " ORDER BY p.rating DESC, p.reviews DESC LIMIT ?1",
         [to_string(how_many)]
     )
 }
@@ -347,7 +378,10 @@ pub fn featured(conn: sqlite.Conn, how_many: int) -> Result<[Product], string> {
 pub fn on_sale(conn: sqlite.Conn, how_many: int) -> Result<[Product], string> {
     fetch_products(
         conn,
-        PRODUCT_COLUMNS + BASE_FROM + " WHERE p.compare_at_cents > p.price_cents" + " ORDER BY (p.compare_at_cents - p.price_cents) DESC LIMIT ?1",
+        PRODUCT_COLUMNS
+            + BASE_FROM
+            + " WHERE p.compare_at_cents > p.price_cents"
+            + " ORDER BY (p.compare_at_cents - p.price_cents) DESC LIMIT ?1",
         [to_string(how_many)]
     )
 }
@@ -414,7 +448,20 @@ fn facet_rows(
     let filter = build_filter(q);
     sqlite.query(
         conn,
-        "SELECT " + value + ", " + label + ", COUNT(DISTINCT p.id)" + BASE_FROM + join + filter.sql + " GROUP BY " + value + ", " + label + " ORDER BY " + order,
+        "SELECT "
+            + value
+            + ", "
+            + label
+            + ", COUNT(DISTINCT p.id)"
+            + BASE_FROM
+            + join
+            + filter.sql
+            + " GROUP BY "
+            + value
+            + ", "
+            + label
+            + " ORDER BY "
+            + order,
         filter.params
     )
 }
@@ -528,7 +575,11 @@ pub fn facets(conn: sqlite.Conn, q: Query) -> Result<Facets, string> {
     let color_filter = build_filter(without_colors(q));
     let color_data = sqlite.query(
         conn,
-        "SELECT fv.color, MIN(fv.color_hex), COUNT(DISTINCT p.id)" + BASE_FROM + color_join + color_filter.sql + " GROUP BY fv.color ORDER BY fv.color ASC",
+        "SELECT fv.color, MIN(fv.color_hex), COUNT(DISTINCT p.id)"
+            + BASE_FROM
+            + color_join
+            + color_filter.sql
+            + " GROUP BY fv.color ORDER BY fv.color ASC",
         color_filter.params
     )?;
     for row in color_data {
@@ -553,7 +604,9 @@ pub fn facets(conn: sqlite.Conn, q: Query) -> Result<Facets, string> {
     let price_filter = build_filter(without_price(q));
     let price_rows = sqlite.query(
         conn,
-        "SELECT COALESCE(MIN(p.price_cents), 0), COALESCE(MAX(p.price_cents), 0)" + BASE_FROM + price_filter.sql,
+        "SELECT COALESCE(MIN(p.price_cents), 0), COALESCE(MAX(p.price_cents), 0)"
+            + BASE_FROM
+            + price_filter.sql,
         price_filter.params
     )?;
     let low = if (price_rows.len() > 0) { database.as_int(price_rows[0][0]) } else { 0 };
