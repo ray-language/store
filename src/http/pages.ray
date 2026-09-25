@@ -23,10 +23,8 @@ pub fn home(c: Ctx, r: Res) {
         }
         // The first featured product headlines the hero; the rest fill the rail.
         var rail: [models.Product] = [];
-        var i = 1;
-        while (i < featured.len()) {
+        for i in 1..featured.len() {
             rail.push(featured[i]);
-            i = i + 1;
         }
         let frame = shell.of(
             conn,
@@ -67,12 +65,8 @@ fn listing(c: Ctx, r: Res, q: catalog.Query, heading: string, subheading: string
         if (q.search.trim() != "") {
             title = "Resultados de “" + q.search + "”";
         }
-        let counted = to_string(page.total)
-            + " " + if (page.total == 1) {
-            "producto"
-        } else {
-            "productos"
-        } + " · " + subheading;
+        let noun = if (page.total == 1) { "producto" } else { "productos" };
+        let counted = to_string(page.total) + " " + noun + " · " + subheading;
         var section = path;
         if (q.category != "") {
             section = "/c/" + q.category;

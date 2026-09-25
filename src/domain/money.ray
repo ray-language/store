@@ -42,7 +42,7 @@ pub fn discount_percent(price_cents: int, compare_at_cents: int) -> int {
     if (compare_at_cents <= price_cents || compare_at_cents <= 0) {
         return 0;
     }
-    return (compare_at_cents - price_cents) * 100 / compare_at_cents;
+    (compare_at_cents - price_cents) * 100 / compare_at_cents
 }
 
 /// Rating in tenths (47) -> "4,7"
