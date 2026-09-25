@@ -77,3 +77,14 @@ fn the_hidden_state_fields_escape_what_they_carry() {
     q.colors = ["A\"B"];
     assert(urls.state_fields(q).contains("&quot;"));
 }
+
+@test
+fn building_a_link_leaves_the_current_query_untouched() {
+    var q = base();
+    q.brands = ["nordis"];
+    q.page = 3;
+    let _ = urls.toggle_brand(q, "lumen");
+    let _ = urls.with_page(q, 5);
+    assert_eq(q.brands, ["nordis"]);
+    assert_eq(q.page, 3);
+}

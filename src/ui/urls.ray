@@ -5,31 +5,17 @@ import std/url;
 import src/domain/markup;
 from src/store/catalog import Query;
 
-// Arrays have reference semantics, so a copy has to clone its lists explicitly.
+// Arrays have reference semantics and `clone` is shallow, so a copy also copies its lists.
 fn cloned(values: [string]) -> [string] {
-    var out: [string] = [];
-    for value in values {
-        out.push(value);
-    }
-    out
+    values.map(fn(v: string) -> string { v })
 }
 
 fn copy_of(q: Query) -> Query {
-    Query {
-        search: q.search,
-        category: q.category,
-        brands: cloned(q.brands),
-        colors: cloned(q.colors),
-        sizes: cloned(q.sizes),
-        min_cents: q.min_cents,
-        max_cents: q.max_cents,
-        min_rating: q.min_rating,
-        in_stock: q.in_stock,
-        on_sale: q.on_sale,
-        sort: q.sort,
-        page: q.page,
-        per_page: q.per_page
-    }
+    var next = q.clone();
+    next.brands = cloned(q.brands);
+    next.colors = cloned(q.colors);
+    next.sizes = cloned(q.sizes);
+    next
 }
 
 fn toggled(values: [string], value: string) -> [string] {

@@ -6,6 +6,7 @@ import src/store/database;
 from src/domain/models import Product, Variant, Feature, Category, Brand, FacetValue;
 
 /// The filter state of a listing request. Empty string / 0 means "no restriction".
+@derive(Clone)
 pub struct Query {
     search: string,
     category: string,
@@ -467,93 +468,39 @@ fn facet_rows(
 }
 
 fn without_brands(q: Query) -> Query {
-    Query {
-        search: q.search,
-        category: q.category,
-        brands: [],
-        colors: q.colors,
-        sizes: q.sizes,
-        min_cents: q.min_cents,
-        max_cents: q.max_cents,
-        min_rating: q.min_rating,
-        in_stock: q.in_stock,
-        on_sale: q.on_sale,
-        sort: q.sort,
-        page: 1,
-        per_page: q.per_page
-    }
+    var next = q.clone();
+    next.brands = [];
+    next.page = 1;
+    next
 }
 
 fn without_colors(q: Query) -> Query {
-    Query {
-        search: q.search,
-        category: q.category,
-        brands: q.brands,
-        colors: [],
-        sizes: q.sizes,
-        min_cents: q.min_cents,
-        max_cents: q.max_cents,
-        min_rating: q.min_rating,
-        in_stock: q.in_stock,
-        on_sale: q.on_sale,
-        sort: q.sort,
-        page: 1,
-        per_page: q.per_page
-    }
+    var next = q.clone();
+    next.colors = [];
+    next.page = 1;
+    next
 }
 
 fn without_sizes(q: Query) -> Query {
-    Query {
-        search: q.search,
-        category: q.category,
-        brands: q.brands,
-        colors: q.colors,
-        sizes: [],
-        min_cents: q.min_cents,
-        max_cents: q.max_cents,
-        min_rating: q.min_rating,
-        in_stock: q.in_stock,
-        on_sale: q.on_sale,
-        sort: q.sort,
-        page: 1,
-        per_page: q.per_page
-    }
+    var next = q.clone();
+    next.sizes = [];
+    next.page = 1;
+    next
 }
 
 fn without_category(q: Query) -> Query {
-    Query {
-        search: q.search,
-        category: "",
-        brands: q.brands,
-        colors: q.colors,
-        sizes: q.sizes,
-        min_cents: q.min_cents,
-        max_cents: q.max_cents,
-        min_rating: q.min_rating,
-        in_stock: q.in_stock,
-        on_sale: q.on_sale,
-        sort: q.sort,
-        page: 1,
-        per_page: q.per_page
-    }
+    var next = q.clone();
+    next.category = "";
+    next.page = 1;
+    next
 }
 
 fn without_price(q: Query) -> Query {
-    Query {
-        search: q.search,
-        category: q.category,
-        brands: q.brands,
-        colors: q.colors,
-        sizes: q.sizes,
-        min_cents: 0,
-        max_cents: 0,
-        min_rating: q.min_rating,
-        in_stock: q.in_stock,
-        on_sale: q.on_sale,
-        sort: q.sort,
-        page: 1,
-        per_page: q.per_page
-    }
+    var next = q.clone();
+    next.min_cents = 0;
+    next.max_cents = 0;
+    next.page = 1;
+    next
 }
 
 /// The sidebar facets for the current query.

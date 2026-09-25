@@ -1,6 +1,7 @@
 // The shopping cart. It lives in the session as a compact string ("12:2,45:1"), so the
 // server keeps no mutable shared state: every request re-reads the line-up and re-prices
 // it against the catalog, which is also what makes the price impossible to tamper with.
+import std/math;
 import db/sqlite;
 import src/store/database;
 from src/domain/models import Cart, CartLine;
@@ -10,15 +11,6 @@ const FREE_SHIPPING_FROM_CENTS: int = 6000;
 const SHIPPING_CENTS: int = 495;
 
 const MAX_UNITS_PER_LINE: int = 10;
-
-// `min`/`max` are array reducers here, so the two-number clamp is spelled out.
-fn cap(value: int, limit: int) -> int {
-    if (value > limit) { limit } else { value }
-}
-
-fn at_least_zero(value: int) -> int {
-    if (value < 0) { 0 } else { value }
-}
 
 /// A line as stored in the session: just an id and a quantity.
 pub struct Entry {
@@ -37,7 +29,9 @@ pub fn parse(raw: string) -> [Entry] {
             let id = database.as_int(parts[0]);
             let quantity = database.as_int(parts[1]);
             if (id > 0 && quantity > 0) {
-                entries.push(Entry { variant_id: id, quantity: cap(quantity, MAX_UNITS_PER_LINE) });
+                entries.push(
+                    Entry { variant_id: id, quantity: math.min(quantity, MAX_UNITS_PER_LINE) }
+                );
             }
         }
     }
@@ -53,15 +47,12 @@ pub fn serialize(entries: [Entry]) -> string {
 }
 
 fn index_of_variant(entries: [Entry], variant_id: int) -> int {
-    var i = 0;
-    var found = -1;
-    while (i < entries.len()) {
-        if (entries[i].variant_id == variant_id && found < 0) {
-            found = i;
+    for i in 0..entries.len() {
+        if (entries[i].variant_id == variant_id) {
+            return i;
         }
-        i = i + 1;
     }
-    found
+    -1
 }
 
 /// Adds units to a line, creating it if needed. Returns the new serialized cart.
@@ -72,9 +63,11 @@ pub fn add(raw: string, variant_id: int, quantity: int) -> string {
     var entries = parse(raw);
     let at = index_of_variant(entries, variant_id);
     if (at >= 0) {
-        entries[at].quantity = cap(entries[at].quantity + quantity, MAX_UNITS_PER_LINE);
+        entries[at].quantity = math.min(entries[at].quantity + quantity, MAX_UNITS_PER_LINE);
     } else {
-        entries.push(Entry { variant_id: variant_id, quantity: cap(quantity, MAX_UNITS_PER_LINE) });
+        entries.push(
+            Entry { variant_id: variant_id, quantity: math.min(quantity, MAX_UNITS_PER_LINE) }
+        );
     }
     serialize(entries)
 }
@@ -88,7 +81,7 @@ pub fn set_quantity(raw: string, variant_id: int, quantity: int) -> string {
             kept.push(entry);
         } else if (quantity > 0) {
             kept.push(
-                Entry { variant_id: variant_id, quantity: cap(quantity, MAX_UNITS_PER_LINE) }
+                Entry { variant_id: variant_id, quantity: math.min(quantity, MAX_UNITS_PER_LINE) }
             );
         }
     }
@@ -163,7 +156,7 @@ pub fn resolve(conn: sqlite.Conn, raw: string) -> Result<Cart, string> {
         match (catalog_rows.get(entry.variant_id)) {
             Option.Some(row) => {
                 let stock = database.as_int(row[7]);
-                let quantity = cap(entry.quantity, at_least_zero(stock));
+                let quantity = math.min(entry.quantity, math.max(stock, 0));
                 if (quantity > 0) {
                     let unit = database.as_int(row[6]);
                     lines.push(

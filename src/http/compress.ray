@@ -1,7 +1,8 @@
 // gzip for the routed responses.
 //
-// `net/webserver` does not negotiate `Accept-Encoding`, and the pages are the expensive
-// part of the transfer: a catalog page is ~30 KB of HTML that no browser caches, so it
+// `net/webserver` only negotiates `Accept-Encoding` for a raw `webserver.Response`
+// (`webserver.gzip`), not for the framework's `Res`, and the pages are the expensive part of
+// the transfer: a catalog page is ~30 KB of HTML that no browser caches, so it
 // travels in full on every navigation. This runs in the `after` chain and swaps the body
 // for its gzipped form when the client asked for it.
 //
@@ -16,7 +17,8 @@
 //
 // `std/deflate` is raylang, so the VM interprets it; the native build compiles it. Set
 // STORE_GZIP=0 to turn it off while developing on the VM.
-from web/framework import Ctx, Res, header, header_of;
+from web/framework import Ctx, Res, header;
+import net/webserver;
 import std/deflate;
 
 // Below this, the gzip header and trailer cost more than they save.
@@ -27,10 +29,6 @@ fn enabled() -> bool {
         Option.Some(value) => value.trim() != "0",
         Option.None => true,
     }
-}
-
-fn accepts_gzip(c: Ctx) -> bool {
-    c.header_of("accept-encoding").to_lower().contains("gzip")
 }
 
 // Only text-shaped payloads. The generated SVG counts; an already-compressed format would
@@ -46,7 +44,9 @@ pub fn gzip_response(c: Ctx, r: Res) {
     if (!enabled()) {
         return;
     }
-    if (!accepts_gzip(c)) {
+    // The server's parser honours `gzip;q=0` (an explicit refusal), which a substring
+    // check would miss.
+    if (!webserver.accepts_gzip(c.req)) {
         return;
     }
     if (!worth_compressing(r.content_type)) {
