@@ -124,7 +124,11 @@ pub fn plain(c: Ctx, r: Res, reply: Reply) {
 /// against the catalog on every request, so nothing the browser sends can change a price.
 pub fn store_cart(r: Res, value: string) {
     r.cookie(
-        request.CART_COOKIE + "=" + url.url_encode(value) + "; Path=/; HttpOnly; SameSite=Lax; Max-Age=" + CART_MAX_AGE
+        request.CART_COOKIE
+            + "="
+            + url.url_encode(value)
+            + "; Path=/; HttpOnly; SameSite=Lax; Max-Age="
+            + CART_MAX_AGE
     );
 }
 

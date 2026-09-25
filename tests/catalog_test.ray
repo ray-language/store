@@ -249,13 +249,7 @@ fn checking_out_stores_the_order_and_discounts_the_stock() {
         Result.Ok(c) => c,
         Result.Err(e) => { panic("resolve: " + e) },
     };
-    let placed = match (orders.place(
-        conn,
-        basket,
-        "Ada Lovelace",
-        "ada@ejemplo.com",
-        "Calle Mayor 1"
-    )) {
+    let placed = match (orders.place(conn, basket, "Ada Lovelace", "ada@ejemplo.com", "Calle Mayor 1")) {
         Result.Ok(p) => p,
         Result.Err(e) => { panic("place: " + e) },
     };

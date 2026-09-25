@@ -705,9 +705,9 @@ pub fn populate(conn: sqlite.Conn) -> Result<int, string> {
         for color in item.colors {
             var size_index = 0;
             for size in item.sizes {
-                let sku = item.slug
-                    .to_upper()
-                    .replace("-", "") + "-" + to_string(variant_index + 1);
+                let sku = item.slug.to_upper().replace("-", "")
+                    + "-"
+                    + to_string(variant_index + 1);
                 let _ = sqlite.exec(
                     conn,
                     `INSERT INTO variants (product_id, sku, color, color_hex, size, price_cents, stock)

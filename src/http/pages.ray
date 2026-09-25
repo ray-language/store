@@ -67,9 +67,12 @@ fn listing(c: Ctx, r: Res, q: catalog.Query, heading: string, subheading: string
         if (q.search.trim() != "") {
             title = "Resultados de “" + q.search + "”";
         }
-        let counted = to_string(
-            page.total
-        ) + " " + if (page.total == 1) { "producto" } else { "productos" } + " · " + subheading;
+        let counted = to_string(page.total)
+            + " " + if (page.total == 1) {
+            "producto"
+        } else {
+            "productos"
+        } + " · " + subheading;
         var section = path;
         if (q.category != "") {
             section = "/c/" + q.category;

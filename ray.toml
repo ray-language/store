@@ -4,6 +4,6 @@ version = "0.1.0"
 entry = "main.ray"
 
 [dependencies]
-web = "git+https://github.com/ray-language/web@v0.1.0"
-net = "git+https://github.com/ray-language/net@v0.1.0"
-db = "git+https://github.com/ray-language/db@v0.1.0"
+web = "^0.4.2"
+net = "^0.3.3"
+db = "^0.1.0"
