@@ -11,6 +11,7 @@ from web/framework import
     static_files_cached,
     not_found,
     log_requests,
+    gzip,
     after,
     cors,
     header,
@@ -24,9 +25,18 @@ import src/http/pages;
 import src/http/purchase;
 import src/http/assets;
 import src/http/api;
-import src/http/compress;
 import src/http/respond;
 from src/http/respond import Reply;
+
+// `std/deflate` is raylang: the native binary compiles it (a 30 KB catalog page gzips in
+// ~3.5 ms) but the VM interprets it (~1 s per page). STORE_GZIP=0 turns it off while
+// developing on the VM.
+fn gzip_enabled() -> bool {
+    match (env("STORE_GZIP")) {
+        Option.Some(value) => value.trim() != "0",
+        Option.None => true,
+    }
+}
 
 pub fn build() -> App {
     var app = new_app();
@@ -72,9 +82,11 @@ pub fn build() -> App {
         r.header("X-Content-Type-Options", "nosniff");
         r.header("Referrer-Policy", "strict-origin-when-cross-origin");
     });
-    // Last in the chain: it rewrites the body, so anything that still wants to touch it
-    // has to have run already.
-    app.after(compress.gzip_response);
+    // gzip for every finished response, static mounts included (web 0.4.5): only when the
+    // client accepts it and it actually shrinks the body; adds `Vary: Accept-Encoding`.
+    if (gzip_enabled()) {
+        app.gzip();
+    }
 
     app.not_found(fn(c: Ctx, r: Res) {
         respond.with_db(c, r, fn(conn: sqlite.Conn) -> Result<Reply, string> {

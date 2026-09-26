@@ -123,7 +123,6 @@ src/http/     lo único que toca Ctx/Res
 | `http/shell.ray` | El modelo de la cabecera por petición |
 | `http/pages.ray` · `purchase.ray` | Las páginas SSR y el flujo de compra |
 | `http/assets.ray` · `api.ray` | Los assets generados y la API JSON |
-| `http/compress.ray` | El gzip de las páginas en la cadena `after` (ver más abajo) |
 | `http/routes.ray` | La tabla de rutas |
 | `views/*.ray.html` | Los templates compilados (layout + vistas + parciales) |
 | `static/app.css` | La hoja de estilos, servida con ETag/304 bajo `/assets/` |
@@ -190,11 +189,11 @@ cierra pase lo que pase —incluido cuando un `?` corta a mitad— y convierte u
 500. Por eso una página es una función en línea recta con `?` en vez de una torre de
 `match`, y por eso el `open`/`disconnect` está escrito una sola vez en todo el proyecto.
 
-**Las páginas se comprimen, y solo en nativo sale a cuenta.** `net/webserver` solo negocia
-`Accept-Encoding` sobre un `webserver.Response` crudo (`webserver.gzip`), no sobre el `Res`
-del framework, así que `src/http/compress.ray` comprime en la cadena `after` (reutilizando
-`webserver.accepts_gzip`, que respeta `gzip;q=0`). Medido sobre
-una página de catálogo de 30,6 KB → 4,8 KB (6,4× menos):
+**Las respuestas se comprimen, y solo en nativo sale a cuenta.** `app.gzip()` (web 0.4.5)
+negocia `Accept-Encoding` sobre toda respuesta terminada —páginas, API y montajes estáticos
+(`/assets/`, `/app/`)—: solo si el cliente acepta gzip (respeta `gzip;q=0`) y el cuerpo
+encoge, y añade `Vary: Accept-Encoding`. Medido sobre una página de catálogo de 30,6 KB →
+4,8 KB (6,4× menos):
 
 | | sin gzip | con gzip |
 |---|---|---|
@@ -202,8 +201,7 @@ una página de catálogo de 30,6 KB → 4,8 KB (6,4× menos):
 | VM (`ray run`) | 2,8 ms | **1016,6 ms** |
 
 `std/deflate` está escrito en raylang: el binario nativo lo compila y la VM lo interpreta, de
-ahí el factor 55×. Por eso hay `STORE_GZIP=0` para desarrollar sobre la VM. No alcanza a los
-montajes estáticos (`/assets/`, `/app/`), que responden antes de la cadena `after`.
+ahí el factor 55×. Por eso hay `STORE_GZIP=0` para desarrollar sobre la VM.
 
 **El naranja de marca es para superficies, no para texto.** `#ff5b35` con texto blanco da
 3,09:1 y WCAG AA pide 4,5. En vez de apagar el color, el texto encima es tinta oscura
