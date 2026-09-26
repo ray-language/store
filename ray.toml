@@ -4,6 +4,6 @@ version = "0.1.0"
 entry = "main.ray"
 
 [dependencies]
-web = "^0.4.2"
-net = "^0.3.3"
-db = "^0.1.0"
+web = "^0.4.5"
+net = "^0.3.7"
+db = "^0.1.1"
